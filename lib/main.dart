@@ -7,10 +7,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'login_service.dart'; // Assuming login_service is in a services folder
 import 'map_screen.dart'; // Import the map screen
 import 'map_handlers/student_model.dart'; // Import the Student model
+import 'notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  // Initialize local notifications for geofence alerts
+  await NotificationService().init();
   runApp(const MyApp());
 }
 
@@ -144,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         return;
       }
 
-      final Student student = await _loginService.signInWithLrnAndPassword(lrn, password);
+  final Student student = await _loginService.signInAuto(lrn, password);
 
       if (mounted) {
         Navigator.pushReplacement(
@@ -284,11 +287,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                               delay: 0.2,
                                               child: _buildTextField(
                                                 controller: _lrnController,
-                                                hint: "e.g., 123456789012",
-                                                label: "LRN",
+                                                hint: "Enter Student LRN or Teacher ID",
+                                                label: "Account ID",
                                                 icon: Icons.numbers_outlined,
                                                 iconColor: primaryColor,
-                                                keyboardType: TextInputType.number,
+                                                keyboardType: TextInputType.text,
                                               ),
                                             ),
                                             const SizedBox(height: 16),

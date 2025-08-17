@@ -23,9 +23,6 @@ class StudentInfoModal extends StatelessWidget {
 
   // Enhanced color palette for consistent UI theming
   static const Color _primaryColor = Color(0xFF6366F1); // Primary brand color (Indigo 500)
-  static const Color _secondaryColor = Color(0xFF8B5CF6); // Secondary accent color (Violet 500)
-  static const Color _accentColor = Color(0xFF06B6D4); // Tertiary accent color (Cyan 500)
-  static const Color _surfaceColor = Color(0xFFF8FAFC); // Light surface background (Slate 50)
   static const Color _darkTextColor = Color(0xFF1E293B); // Dark text color (Slate 900)
   static const Color _lightTextColor = Color(0xFF64748B); // Lighter text color (Slate 500)
   static const Color _successColor = Color(0xFF10B981); // Green for success states (Emerald 500)
@@ -105,6 +102,17 @@ class StudentInfoModal extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Absence Reason Section - Only show if student is outside during class hours
+        if (!student.isTeacher && 
+            student.status == LocationStatus.outsideSchool &&
+            student.isDuringClassHours)
+          _buildAbsenceStatusSection(),
+        
+        if (!student.isTeacher && 
+            student.status == LocationStatus.outsideSchool &&
+            student.isDuringClassHours)
+          const SizedBox(height: 24),
+        
         _buildSectionHeader("Current Location", Icons.location_on),
         const SizedBox(height: 12),
         _buildLocationCard(),
@@ -260,24 +268,43 @@ class StudentInfoModal extends StatelessWidget {
   }
 
   Widget _buildActivityTimeline() {
-    return Column(
-      children: [
-        _buildTimelineItem(
-          icon: Icons.access_time_filled,
-          time: "10:00 AM",
-          title: "Class Started",
-          description: "Regular class hours began",
-          isActive: false,
-        ),
-        _buildTimelineItem(
-          icon: Icons.location_on,
-          time: "${student.lastUpdated.hour % 12}:${student.lastUpdated.minute.toString().padLeft(2, '0')} ${student.lastUpdated.hour < 12 ? 'AM' : 'PM'}",
-          title: "Location Update",
-          description: student.recentActivity,
-          isActive: true,
-        ),
-      ],
-    );
+    List<Widget> timelineItems = [];
+    
+    // Add class start item
+    timelineItems.add(_buildTimelineItem(
+      icon: Icons.access_time_filled,
+      time: "10:00 AM",
+      title: "Class Started",
+      description: "Regular class hours began",
+      isActive: false,
+    ));
+    
+    // Add absence reason if student is outside during class hours and has provided a reason
+    if (student.status == LocationStatus.outsideSchool && 
+        student.isDuringClassHours && 
+        student.absenceReason != null && 
+        student.absenceReasonSubmittedAt != null) {
+      final reasonTime = student.absenceReasonSubmittedAt!;
+      timelineItems.add(_buildTimelineItem(
+        icon: Icons.info_outline,
+        time: "${reasonTime.hour % 12}:${reasonTime.minute.toString().padLeft(2, '0')} ${reasonTime.hour < 12 ? 'AM' : 'PM'}",
+        title: "Absence Reason",
+        description: student.absenceReason!,
+        isActive: false,
+        isAbsenceReason: true,
+      ));
+    }
+    
+    // Add location update item
+    timelineItems.add(_buildTimelineItem(
+      icon: Icons.location_on,
+      time: "${student.lastUpdated.hour % 12}:${student.lastUpdated.minute.toString().padLeft(2, '0')} ${student.lastUpdated.hour < 12 ? 'AM' : 'PM'}",
+      title: "Location Update",
+      description: student.recentActivity,
+      isActive: true,
+    ));
+    
+    return Column(children: timelineItems);
   }
 
   Widget _buildTimelineItem({
@@ -286,7 +313,11 @@ class StudentInfoModal extends StatelessWidget {
     required String title,
     required String description,
     required bool isActive,
+    bool isAbsenceReason = false,
   }) {
+    final Color primaryColor = isAbsenceReason ? _warningColor : _primaryColor;
+    final Color backgroundColor = isAbsenceReason ? _warningColor.withAlpha((255 * 0.1).toInt()) : _primaryColor.withAlpha((255 * 0.1).toInt());
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -299,10 +330,10 @@ class StudentInfoModal extends StatelessWidget {
                 height: 40,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isActive ? _primaryColor : _lightTextColor.withAlpha((255 * 0.2).toInt()), // Using withAlpha
+                  color: isActive ? primaryColor : _lightTextColor.withAlpha((255 * 0.2).toInt()), // Using withAlpha
                   boxShadow: isActive ? [
                     BoxShadow(
-                      color: _primaryColor.withAlpha((255 * 0.3).toInt()), // Using withAlpha
+                      color: primaryColor.withAlpha((255 * 0.3).toInt()), // Using withAlpha
                       blurRadius: 10,
                       spreadRadius: 2,
                     ),
@@ -331,10 +362,10 @@ class StudentInfoModal extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha((255 * 0.8).toInt()), // Using withAlpha
+                color: isAbsenceReason ? backgroundColor : Colors.white.withAlpha((255 * 0.8).toInt()), // Using withAlpha
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isActive ? _primaryColor.withAlpha((255 * 0.2).toInt()) : Colors.white.withAlpha((255 * 0.5).toInt()), // Using withAlpha
+                  color: isActive ? primaryColor.withAlpha((255 * 0.2).toInt()) : Colors.white.withAlpha((255 * 0.5).toInt()), // Using withAlpha
                   width: 1,
                 ),
                 boxShadow: [
@@ -355,7 +386,7 @@ class StudentInfoModal extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: isActive ? _primaryColor : _lightTextColor,
+                          color: isActive ? primaryColor : _lightTextColor,
                         ),
                       ),
                       const Spacer(),
@@ -375,15 +406,31 @@ class StudentInfoModal extends StatelessWidget {
                             ),
                           ),
                         ),
+                      if (isAbsenceReason)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _warningColor.withAlpha((255 * 0.2).toInt()),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            "ABSENT",
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: _warningColor,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: _darkTextColor,
+                      color: isAbsenceReason ? _warningColor : _darkTextColor,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -397,6 +444,108 @@ class StudentInfoModal extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _isSameDay(DateTime date1, DateTime date2) {
+    return date1.year == date2.year &&
+           date1.month == date2.month &&
+           date1.day == date2.day;
+  }
+
+  Widget _buildAbsenceStatusSection() {
+    final hasReasonToday = student.absenceReason != null && 
+        student.absenceReasonSubmittedAt != null &&
+        _isSameDay(student.absenceReasonSubmittedAt!, DateTime.now());
+    
+    if (!hasReasonToday) return const SizedBox.shrink();
+    
+    final reasonTime = student.absenceReasonSubmittedAt!;
+    final timeString = "${reasonTime.hour % 12 == 0 ? 12 : reasonTime.hour % 12}:${reasonTime.minute.toString().padLeft(2, '0')} ${reasonTime.hour < 12 ? 'AM' : 'PM'}";
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: _warningColor.withAlpha((255 * 0.05).toInt()),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _warningColor.withAlpha((255 * 0.2).toInt()),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _warningColor.withAlpha((255 * 0.1).toInt()),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              Icons.info_outline,
+              color: _warningColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      timeString,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _lightTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _warningColor.withAlpha((255 * 0.2).toInt()),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "ABSENT",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: _warningColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "Absence Reason",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: _warningColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  student.absenceReason!,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _lightTextColor,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
