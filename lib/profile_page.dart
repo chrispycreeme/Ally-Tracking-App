@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'map_handlers/student_model.dart';
 import 'map_handlers/map_service.dart';
 import 'map_handlers/absence_reason_dialog.dart';
+import 'map_handlers/history_service.dart';
 
 // Ensure the AbsenceReasonDialog class is defined in the imported file or define it below if missing.
 import 'login_service.dart';
@@ -205,12 +206,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildScrollableContent() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
+        padding: EdgeInsets.all(isSmallScreen ? 12.0 : 20.0),
         child: Column(
           children: [
-            const SizedBox(height: 20),
+            SizedBox(height: isSmallScreen ? 12 : 20),
             
             // Absence Reason Section - Only show if student is outside during class hours
             if (!widget.student.isTeacher && 
@@ -221,23 +225,23 @@ class _ProfilePageState extends State<ProfilePage> {
             if (!widget.student.isTeacher && 
                 widget.student.status == LocationStatus.outsideSchool &&
                 widget.student.isDuringClassHours)
-              const SizedBox(height: 24),
+              SizedBox(height: isSmallScreen ? 16 : 24),
             
             // Profile Picture Section
             _buildEnhancedProfileSection(),
-            const SizedBox(height: 24),
+            SizedBox(height: isSmallScreen ? 16 : 24),
             
             // User Information Section
             _buildEnhancedUserInfoSection(),
-            const SizedBox(height: 24),
+            SizedBox(height: isSmallScreen ? 16 : 24),
             
             // Stats Section (if student)
             if (!widget.student.isTeacher) _buildStatsSection(),
-            if (!widget.student.isTeacher) const SizedBox(height: 24),
+            if (!widget.student.isTeacher) SizedBox(height: isSmallScreen ? 16 : 24),
             
             // Action Buttons Section
             _buildEnhancedActionButtonsSection(),
-            const SizedBox(height: 40),
+            SizedBox(height: isSmallScreen ? 24 : 40),
           ],
         ),
       ),
@@ -245,8 +249,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildEnhancedProfileSection() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: EdgeInsets.all(isSmallScreen ? 20 : 32),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -278,8 +285,8 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               // Animated ring
               Container(
-                width: 140,
-                height: 140,
+                width: isSmallScreen ? 110 : 140,
+                height: isSmallScreen ? 110 : 140,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -291,8 +298,8 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               // Profile image container
               Container(
-                width: 128,
-                height: 128,
+                width: isSmallScreen ? 100 : 128,
+                height: isSmallScreen ? 100 : 128,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
@@ -316,7 +323,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             color: _surfaceColor,
                             child: Icon(
                               Icons.person,
-                              size: 64,
+                              size: isSmallScreen ? 48 : 64,
                               color: _lightTextColor,
                             ),
                           ),
@@ -331,7 +338,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: GestureDetector(
                     onTap: _pickAndUploadImage,
                     child: Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [_primaryColor, _secondaryColor],
@@ -347,29 +354,29 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                         ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.camera_alt,
                         color: Colors.white,
-                        size: 22,
+                        size: isSmallScreen ? 18 : 22,
                       ),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: isSmallScreen ? 16 : 24),
           
           // Name and Role
           Text(
             widget.student.name,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: isSmallScreen ? 20 : 24,
               fontWeight: FontWeight.bold,
               color: _darkTextColor,
               fontFamily: 'Inter',
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isSmallScreen ? 6 : 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
@@ -406,7 +413,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isSmallScreen ? 8 : 12),
           Text(
             'Tap the camera icon to update your profile picture',
             textAlign: TextAlign.center,
@@ -422,8 +429,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildEnhancedUserInfoSection() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -472,7 +482,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Text(
                 'Account Information',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: isSmallScreen ? 16 : 20,
                   fontWeight: FontWeight.bold,
                   color: _darkTextColor,
                   fontFamily: 'Inter',
@@ -480,7 +490,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: isSmallScreen ? 16 : 24),
           _buildEnhancedInfoRow('Name', widget.student.name, Icons.badge),
           _buildEnhancedInfoRow('ID', widget.student.id, Icons.fingerprint),
           _buildEnhancedInfoRow(
@@ -499,10 +509,13 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildEnhancedInfoRow(String label, String value, IconData icon) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: EdgeInsets.only(bottom: isSmallScreen ? 12 : 20),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
         decoration: BoxDecoration(
           color: _surfaceColor.withAlpha((255 * 0.3).toInt()),
           borderRadius: BorderRadius.circular(16),
@@ -514,18 +527,18 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
               decoration: BoxDecoration(
                 color: _primaryColor.withAlpha((255 * 0.1).toInt()),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
-                size: 18,
+                size: isSmallScreen ? 16 : 18,
                 color: _primaryColor,
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: isSmallScreen ? 12 : 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,18 +546,18 @@ class _ProfilePageState extends State<ProfilePage> {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isSmallScreen ? 11 : 12,
                       fontWeight: FontWeight.w500,
                       color: _lightTextColor,
                       fontFamily: 'Inter',
                       letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: isSmallScreen ? 3 : 4),
                   Text(
                     value,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: isSmallScreen ? 14 : 16,
                       fontWeight: FontWeight.w700,
                       color: _darkTextColor,
                       fontFamily: 'Inter',
@@ -570,13 +583,16 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildAbsenceStatusSection() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    
     final hasReasonToday = widget.student.absenceReason != null && 
         widget.student.absenceReasonSubmittedAt != null &&
         _isSameDay(widget.student.absenceReasonSubmittedAt!, DateTime.now());
     
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -606,7 +622,7 @@ class _ProfilePageState extends State<ProfilePage> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(isSmallScreen ? 10 : 12),
                 decoration: BoxDecoration(
                   color: _warningColor.withAlpha((255 * 0.2).toInt()),
                   borderRadius: BorderRadius.circular(16),
@@ -614,10 +630,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Icon(
                   Icons.location_off_outlined,
                   color: _warningColor,
-                  size: 28,
+                  size: isSmallScreen ? 22 : 28,
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: isSmallScreen ? 12 : 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -625,17 +641,17 @@ class _ProfilePageState extends State<ProfilePage> {
                     Text(
                       'Outside School Area',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: isSmallScreen ? 16 : 20,
                         fontWeight: FontWeight.bold,
                         color: _warningColor,
                         fontFamily: 'Inter',
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: isSmallScreen ? 2 : 4),
                     Text(
                       'During class hours',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: isSmallScreen ? 12 : 14,
                         color: _lightTextColor,
                         fontFamily: 'Inter',
                       ),
@@ -644,7 +660,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 10 : 12, vertical: isSmallScreen ? 4 : 6),
                 decoration: BoxDecoration(
                   color: _warningColor,
                   borderRadius: BorderRadius.circular(20),
@@ -652,7 +668,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: Text(
                   'ABSENT',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isSmallScreen ? 10 : 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     fontFamily: 'Inter',
@@ -662,13 +678,13 @@ class _ProfilePageState extends State<ProfilePage> {
             ],
           ),
           
-          const SizedBox(height: 20),
+          SizedBox(height: isSmallScreen ? 16 : 20),
           
           // Current Status or Reason
           if (hasReasonToday) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
               decoration: BoxDecoration(
                 color: Colors.white.withAlpha((255 * 0.8).toInt()),
                 borderRadius: BorderRadius.circular(16),
@@ -683,28 +699,28 @@ class _ProfilePageState extends State<ProfilePage> {
                   Text(
                     'Today\'s Absence Reason:',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isSmallScreen ? 11 : 12,
                       fontWeight: FontWeight.w600,
                       color: _warningColor,
                       fontFamily: 'Inter',
                       letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: isSmallScreen ? 6 : 8),
                   Text(
                     widget.student.absenceReason!,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: isSmallScreen ? 14 : 16,
                       fontWeight: FontWeight.w600,
                       color: _darkTextColor,
                       fontFamily: 'Inter',
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: isSmallScreen ? 6 : 8),
                   Text(
                     'Submitted: ${_formatDateTime(widget.student.absenceReasonSubmittedAt!)}',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isSmallScreen ? 11 : 12,
                       color: _lightTextColor,
                       fontFamily: 'Inter',
                       fontStyle: FontStyle.italic,
@@ -713,12 +729,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: isSmallScreen ? 12 : 16),
             
             // Update button
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: isSmallScreen ? 42 : 48,
               child: OutlinedButton.icon(
                 onPressed: _isLoading ? null : _showAbsenceReasonDialog,
                 style: OutlinedButton.styleFrom(
@@ -727,13 +743,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                icon: Icon(Icons.edit_outlined, color: _warningColor, size: 18),
+                icon: Icon(Icons.edit_outlined, color: _warningColor, size: isSmallScreen ? 16 : 18),
                 label: Text(
                   'Update Reason',
                   style: TextStyle(
                     color: _warningColor,
                     fontWeight: FontWeight.w600,
                     fontFamily: 'Inter',
+                    fontSize: isSmallScreen ? 14 : 16,
                   ),
                 ),
               ),
@@ -811,7 +828,7 @@ class _ProfilePageState extends State<ProfilePage> {
         throw Exception('Absence reason cannot be empty');
       }
       
-      if (widget.student.id == null || widget.student.id.trim().isEmpty) {
+      if (widget.student.id.trim().isEmpty) {
         throw Exception('Student ID is missing');
       }
       
@@ -825,6 +842,17 @@ class _ProfilePageState extends State<ProfilePage> {
       try {
         await _mapService.updateAbsenceReason(widget.student.id, reason, now);
         print('✅ Firestore update completed');
+        // Also log to history (best-effort)
+        try {
+          await HistoryService().addAbsenceReason(
+            studentId: widget.student.id,
+            timestamp: now,
+            reason: reason,
+            location: widget.student.currentLocation,
+          );
+        } catch (e) {
+          print('⚠️ Failed to log history for absence reason: $e');
+        }
       } catch (e) {
         print('❌ Firestore update failed: $e');
         throw Exception('Failed to save absence reason: $e');
@@ -892,8 +920,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildStatsSection() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -941,7 +972,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Text(
                 'Quick Stats',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: isSmallScreen ? 16 : 20,
                   fontWeight: FontWeight.bold,
                   color: _darkTextColor,
                   fontFamily: 'Inter',
@@ -949,7 +980,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isSmallScreen ? 12 : 20),
           Row(
             children: [
               Expanded(
@@ -961,7 +992,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Icons.location_on,
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: isSmallScreen ? 12 : 16),
               Expanded(
                 child: _buildStatCard(
                   'Last Update',
@@ -978,8 +1009,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildStatCard(String label, String value, Color color, IconData icon) {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white.withAlpha((255 * 0.8).toInt()),
         borderRadius: BorderRadius.circular(16),
@@ -993,24 +1027,24 @@ class _ProfilePageState extends State<ProfilePage> {
         children: [
           Icon(
             icon,
-            size: 24,
+            size: isSmallScreen ? 20 : 24,
             color: color,
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: isSmallScreen ? 6 : 8),
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: isSmallScreen ? 11 : 12,
               fontWeight: FontWeight.w500,
               color: _lightTextColor,
               fontFamily: 'Inter',
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: isSmallScreen ? 3 : 4),
           Text(
             value,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isSmallScreen ? 12 : 14,
               fontWeight: FontWeight.bold,
               color: color,
               fontFamily: 'Inter',
@@ -1037,12 +1071,15 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildEnhancedActionButtonsSection() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    
     return Column(
       children: [
         // Logout Button
         Container(
           width: double.infinity,
-          height: 56,
+          height: isSmallScreen ? 48 : 56,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
@@ -1062,12 +1099,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 borderRadius: BorderRadius.circular(16),
               ),
               elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 20 : 24, vertical: isSmallScreen ? 12 : 16),
             ),
             child: _isLoading
                 ? SizedBox(
-                    height: 24,
-                    width: 24,
+                    height: isSmallScreen ? 20 : 24,
+                    width: isSmallScreen ? 20 : 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
@@ -1076,16 +1113,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.logout, 
-                        size: 20,
+                        size: isSmallScreen ? 18 : 20,
                         color: Colors.white,
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
+                      SizedBox(width: isSmallScreen ? 8 : 12),
+                      Text(
                         'Logout',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: isSmallScreen ? 14 : 16,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'Inter',
                         ),
@@ -1094,11 +1131,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: isSmallScreen ? 16 : 24),
         
         // App Version Info
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 16 : 20, vertical: isSmallScreen ? 10 : 12),
           decoration: BoxDecoration(
             color: _primaryColor.withAlpha((255 * 0.05).toInt()),
             borderRadius: BorderRadius.circular(20),
@@ -1112,14 +1149,14 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               Icon(
                 Icons.info_outline,
-                size: 16,
+                size: isSmallScreen ? 14 : 16,
                 color: _primaryColor,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: isSmallScreen ? 6 : 8),
               Text(
                 'Ally Tracking App v1.0.0',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: isSmallScreen ? 11 : 12,
                   fontWeight: FontWeight.w500,
                   color: _primaryColor,
                   fontFamily: 'Inter',

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -15,12 +16,14 @@ import 'map_handlers/absence_reason_dialog.dart'; // Import for absence reason d
 import 'notification_service.dart';
 import 'map_handlers/teacher_assignment_service.dart';
 import 'profile_page.dart'; // Import for profile page
-import 'main.dart'; // Import main.dart to access LoginScreen
+import 'login_screen.dart';
+import 'history_screen.dart';
+import 'map_handlers/history_service.dart';
 
 /// Main StatefulWidget for the map screen.
 class FixedMapScreen extends StatefulWidget {
   final Student student; // Accepts a Student object
-  const FixedMapScreen({super.key, required this.student, required String studentLrn});
+  const FixedMapScreen({super.key, required this.student});
 
   @override
   State<FixedMapScreen> createState() => _FixedMapScreenState();
@@ -33,6 +36,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
   final MapService _mapService = MapService();
   final MapController _mapController = MapController();
   final TeacherAssignmentService _assignmentService = TeacherAssignmentService();
+  final HistoryService _historyService = HistoryService();
 
   // Student data for the logged-in user
   late Student _student;
@@ -55,6 +59,9 @@ class _FixedMapScreenState extends State<FixedMapScreen>
   bool _isLoading = true;
   bool _isMapReady = false;
   bool _isModalVisible = false;
+  // Throttle/serialize building fetch during rapid pan/zoom
+  Timer? _buildingsDebounce;
+  bool _isFetchingBuildings = false;
   // Bottom sheet state for teacher student list filtering
   String _lrnFilterQuery = '';
   final TextEditingController _lrnFilterController = TextEditingController();
@@ -217,6 +224,17 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       
       // Update Firestore with the absence reason
       await _mapService.updateAbsenceReason(_student.id, reason, now);
+
+      // Log to history
+      try {
+        await _historyService.addAbsenceReason(
+          studentId: _student.id,
+          timestamp: now,
+          reason: reason,
+          location: _student.currentLocation,
+          placeName: _currentPlaceName,
+        );
+      } catch (_) {}
       
       // Show confirmation message
       if (mounted) {
@@ -374,11 +392,21 @@ class _FixedMapScreenState extends State<FixedMapScreen>
         throw Exception('Location permissions denied');
       }
 
+      final LocationSettings initialLocSettings = Platform.isAndroid
+          ? AndroidSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 0,
+              // Force Android LocationManager to avoid Google Play Services (fixes SecurityException)
+              forceLocationManager: true,
+              timeLimit: const Duration(seconds: 30),
+            )
+          : const LocationSettings(
+              accuracy: LocationAccuracy.best,
+              timeLimit: Duration(seconds: 30),
+            );
+
       Position initialPosition = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          timeLimit: Duration(seconds: 30),
-        ),
+        locationSettings: initialLocSettings,
       );
 
       if (mounted) {
@@ -416,6 +444,17 @@ class _FixedMapScreenState extends State<FixedMapScreen>
           studentName: _student.name,
         );
 
+        // Log initial status into history (best-effort)
+        try {
+          await _historyService.addStatusChange(
+            studentId: _student.id,
+            timestamp: DateTime.now(),
+            statusDisplay: _student.statusDisplay,
+            location: _student.currentLocation,
+            placeName: _currentPlaceName,
+          );
+        } catch (_) {}
+
         // Check if we need to ask for absence reason on initial load
         await _checkAndPromptForAbsenceReason(initialStatus);
 
@@ -423,15 +462,26 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       }
 
       _positionStreamSubscription?.cancel();
+      final LocationSettings streamLocSettings = Platform.isAndroid
+          ? AndroidSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 1,
+              // Force Android LocationManager to avoid Google Play Services (fixes SecurityException)
+              forceLocationManager: true,
+              intervalDuration: const Duration(seconds: 2),
+            )
+          : const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 1,
+            );
+
       _positionStreamSubscription =
           Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              distanceFilter: 1, // Update every 1 meter change
-            ),
+            locationSettings: streamLocSettings,
           ).listen(
             (Position position) async { // Make the listener async
-              if (mounted) {
+              try {
+                if (!mounted) return;
                 final newLocation = LatLng(position.latitude, position.longitude);
                 final newStatus = _schoolBoundary.checkLocationStatus(newLocation);
                 final bool statusHasChanged = _student.status != newStatus;
@@ -473,9 +523,22 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                     entered: newStatus == LocationStatus.insideSchool,
                     studentName: _student.name,
                   );
+
+                  // Log status change in history (best-effort)
+                  try {
+                    await _historyService.addStatusChange(
+                      studentId: _student.id,
+                      timestamp: DateTime.now(),
+                      statusDisplay: _student.statusDisplay,
+                      location: _student.currentLocation,
+                      placeName: _currentPlaceName,
+                    );
+                  } catch (_) {}
                 }
 
                 _reverseGeocodeLocation(newLocation);
+              } catch (err, st) {
+                print('❌ Error in position listener: $err\n$st');
               }
             },
             onError: (error) {
@@ -569,6 +632,14 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     animationController.forward();
   }
 
+  void _scheduleFetchBuildings() {
+    _buildingsDebounce?.cancel();
+    _buildingsDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      _fetchBuildings();
+    });
+  }
+
   Future<void> _fetchBuildings() async {
     if (!_isMapReady || _mapController.camera.zoom < 17) {
       if (mounted && _buildingPolygons.isNotEmpty) {
@@ -579,8 +650,10 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       return;
     }
     if (!mounted) return;
+    if (_isFetchingBuildings) return;
 
     try {
+      _isFetchingBuildings = true;
       final bounds = _mapController.camera.visibleBounds;
       final buildings = await _mapService.fetchBuildingData(bounds);
       if (mounted) {
@@ -599,6 +672,8 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       }
     } catch (e) {
       print('Error fetching building data: $e');
+    } finally {
+      _isFetchingBuildings = false;
     }
   }
 
@@ -643,6 +718,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     _pulseAnimationController.dispose();
     _slideAnimationController.dispose();
     _lrnFilterController.dispose();
+  _buildingsDebounce?.cancel();
     
     super.dispose();
   }
@@ -759,7 +835,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
         maxZoom: 22,
         minZoom: 15,
         onPositionChanged: (position, hasGesture) {
-          if (hasGesture) _fetchBuildings();
+          if (hasGesture) _scheduleFetchBuildings();
         },
         onMapReady: () {
           if (mounted) {
@@ -773,10 +849,15 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       ),
       children: [
         TileLayer(
-          urlTemplate:
-              'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-          subdomains: const ['a', 'b', 'c', 'd'],
+          // OpenStreetMap Standard tiles with caching
+          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          subdomains: const ['a', 'b', 'c'],
           maxZoom: 22,
+          maxNativeZoom: 19,
+          userAgentPackageName: 'com.rshsiii.ally',
+          errorTileCallback: (tile, error, stackTrace) {
+            debugPrint('🧩 Tile load error: ${error.runtimeType}: $error');
+          },
         ),
         PolygonLayer(polygons: _buildingPolygons),
         CircleLayer(
@@ -1158,10 +1239,11 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                   label: "Home",
                   isActive: true,
                 ),
-                const _EnhancedNavItem(
+                _EnhancedNavItem(
                   icon: FontAwesomeIcons.clockRotateLeft,
                   label: "History",
                   isActive: false,
+                  onTap: _showHistory,
                 ),
                 if (_student.isTeacher)
                   _EnhancedNavItem(
@@ -1182,6 +1264,28 @@ class _FixedMapScreenState extends State<FixedMapScreen>
         ),
       ),
     );
+  }
+
+  void _showHistory() {
+    if (_student.isTeacher) {
+      // For teacher, pass the current list of visible/assigned students
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => HistoryScreen(
+            viewer: _student,
+            // Use the same sorted/filtered list used in the UI to ensure valid IDs
+            teacherStudents: _sortedFilteredOtherStudents(),
+          ),
+        ),
+      );
+    } else {
+      // For student, just show their own history
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => HistoryScreen(viewer: _student),
+        ),
+      );
+    }
   }
 
   // Returns a sorted & optionally filtered list of other students for teacher view
