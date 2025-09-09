@@ -19,6 +19,8 @@ import 'profile_page.dart'; // Import for profile page
 import 'login_screen.dart';
 import 'history_screen.dart';
 import 'map_handlers/history_service.dart';
+import 'background_location_service.dart';
+import 'map_handlers/building_model.dart';
 
 /// Main StatefulWidget for the map screen.
 class FixedMapScreen extends StatefulWidget {
@@ -56,6 +58,8 @@ class _FixedMapScreenState extends State<FixedMapScreen>
 
   // State variables for map data and UI
   List<Polygon> _buildingPolygons = [];
+  List<Building> _buildings = [];
+  List<Marker> _buildingLabelMarkers = [];
   bool _isLoading = true;
   bool _isMapReady = false;
   bool _isModalVisible = false;
@@ -86,8 +90,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
 
 
   // Animation Controllers and Animations
-  late AnimationController _markerAnimationController;
-  late Animation<double> _markerAnimation;
+  // Removed scaling animation for constant-size markers
   late AnimationController _backgroundAnimationController;
   late Animation<AlignmentGeometry> _backgroundAlignmentAnimation;
   late AnimationController _pulseAnimationController;
@@ -135,6 +138,8 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       _isLoading = false;
     } else {
       _fetchLocationAndData();
+  // Ensure background tracking still aligned (e.g., app reopened during class hours)
+  reevaluateBackgroundTracking();
     }
   }
 
@@ -276,7 +281,10 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                 gradeLevel: updatedSelf.first.gradeLevel,
                 profileImageUrl: updatedSelf.first.profileImageUrl,
                 role: updatedSelf.first.role,
+                classHours: updatedSelf.first.classHours,
               );
+              // Re-evaluate background tracking if class hours changed
+              reevaluateBackgroundTracking();
             }
 
             // Only teachers maintain the list of other students
@@ -307,17 +315,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
 
   /// Initializes all animation controllers and their respective animations.
   void _initializeAnimations() {
-    _markerAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
-
-    _markerAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
-      CurvedAnimation(
-        parent: _markerAnimationController,
-        curve: Curves.easeInOutSine,
-      ),
-    );
+  // Marker scale animation removed
 
     _backgroundAnimationController = AnimationController(
       vsync: this,
@@ -492,12 +490,18 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                       : "Student is currently outside school.";
                 }
 
+                String? currentBuilding;
+                if (_buildings.isNotEmpty) {
+                  currentBuilding = _mapService.buildingContainingPoint(newLocation, _buildings);
+                }
+
                 setState(() {
                   _student = _student.copyWith(
                     currentLocation: newLocation,
                     lastUpdated: DateTime.now(),
                     status: newStatus,
                     recentActivity: newActivity,
+                    currentBuilding: currentBuilding,
                   );
                   // If the currently selected student is the user, update their info
                   if (_selectedStudent.id == _student.id) {
@@ -515,6 +519,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                   _student.status,
                   _student.recentActivity,
                   _student.lastUpdated,
+                  currentBuilding: _student.currentBuilding,
                 );
 
                 // Trigger notification on status change
@@ -645,6 +650,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       if (mounted && _buildingPolygons.isNotEmpty) {
         setState(() {
           _buildingPolygons = [];
+          _buildings = [];
         });
       }
       return;
@@ -655,18 +661,59 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     try {
       _isFetchingBuildings = true;
       final bounds = _mapController.camera.visibleBounds;
-      final buildings = await _mapService.fetchBuildingData(bounds);
+      final buildings = await _mapService.fetchBuildings(bounds);
       if (mounted) {
         setState(() {
+          _buildings = buildings;
           _buildingPolygons = buildings
-              .map(
-                (points) => Polygon(
-                  points: points,
-                  color: _primaryColor.withAlpha((255 * 0.08).toInt()),
-                  borderColor: _primaryColor.withAlpha((255 * 0.3).toInt()),
-                  borderStrokeWidth: 1.5,
-                ),
-              )
+              .map((b) => Polygon(
+                    points: b.points,
+                    // Increase fill opacity for visibility
+                    color: _primaryColor.withAlpha((255 * 0.25).toInt()),
+                    // Stronger border
+                    borderColor: _primaryColor.withAlpha((255 * 0.9).toInt()),
+                    borderStrokeWidth: 3,
+                  ))
+              .toList();
+          _buildingLabelMarkers = buildings
+              .where((b) => b.points.isNotEmpty)
+              .map((b) => Marker(
+                    width: 140,
+                    height: 40,
+                    point: b.centroid ?? b.points.first,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _primaryColor.withAlpha((255 * 0.8).toInt()),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: _primaryColor.withAlpha((255 * 0.4).toInt()),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(
+                            b.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ))
               .toList();
         });
       }
@@ -713,7 +760,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     _cleanupListeners();
     
     // Dispose controllers
-    _markerAnimationController.dispose();
+  // _markerAnimationController removed
     _backgroundAnimationController.dispose();
     _pulseAnimationController.dispose();
     _slideAnimationController.dispose();
@@ -859,7 +906,8 @@ class _FixedMapScreenState extends State<FixedMapScreen>
             debugPrint('🧩 Tile load error: ${error.runtimeType}: $error');
           },
         ),
-        PolygonLayer(polygons: _buildingPolygons),
+  PolygonLayer(polygons: _buildingPolygons),
+  if (_buildingLabelMarkers.isNotEmpty) MarkerLayer(markers: _buildingLabelMarkers),
         CircleLayer(
           circles: [
             CircleMarker(
@@ -891,54 +939,50 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     return Stack(
       alignment: Alignment.center,
       children: [
-        ScaleTransition(
-          scale: _pulseAnimation,
-          child: Container(
-            width: 80,
+        // Outer halo (static size now)
+        Container(
+          width: 80,
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _primaryColor.withAlpha((255 * 0.2).toInt()),
+              color: _primaryColor.withAlpha((255 * 0.18).toInt()),
               border: Border.all(
-                color: _primaryColor.withAlpha((255 * 0.4).toInt()),
+                color: _primaryColor.withAlpha((255 * 0.45).toInt()),
                 width: 2,
               ),
             ),
           ),
-        ),
-        ScaleTransition(
-          scale: _markerAnimation,
-          child: Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(color: _primaryColor, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: _primaryColor.withAlpha((255 * 0.3).toInt()),
-                  spreadRadius: 0,
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(3.0),
-              child: ClipOval(
-                child: Image.network(
-                  _student.profileImageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [_primaryColor, _secondaryColor],
-                      ),
+        // Inner avatar circle (constant size)
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+            border: Border.all(color: _primaryColor, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: _primaryColor.withAlpha((255 * 0.3).toInt()),
+                spreadRadius: 0,
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(3.0),
+            child: ClipOval(
+              child: Image.network(
+                _student.profileImageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [_primaryColor, _secondaryColor],
                     ),
-                    child: const Icon(Icons.person, color: Colors.white, size: 30),
                   ),
+                  child: const Icon(Icons.person, color: Colors.white, size: 30),
                 ),
               ),
             ),
@@ -950,37 +994,34 @@ class _FixedMapScreenState extends State<FixedMapScreen>
 
   /// Builds the pulsing marker for other students.
   Widget _buildOtherStudentMarker(Student student) {
-    return ScaleTransition(
-      scale: _pulseAnimation,
-      child: Container(
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-          border: Border.all(
-            color: student.status == LocationStatus.insideSchool
-                ? _successColor
-                : _warningColor,
-            width: 3,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha((255 * 0.2).toInt()),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        border: Border.all(
+          color: student.status == LocationStatus.insideSchool
+              ? _successColor
+              : _warningColor,
+          width: 3,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(2.0),
-          child: ClipOval(
-            child: Image.network(
-              student.profileImageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.person,
-                color: Colors.grey,
-                size: 30,
-              ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha((255 * 0.2).toInt()),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(2.0),
+        child: ClipOval(
+          child: Image.network(
+            student.profileImageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.person,
+              color: Colors.grey,
+              size: 30,
             ),
           ),
         ),
@@ -1055,6 +1096,17 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                       fontSize: 14,
                     ),
                   ),
+                  if (studentToShow.currentBuilding != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Building: ${studentToShow.currentBuilding}',
+                      style: TextStyle(
+                        color: Colors.white.withAlpha((255 * 0.85).toInt()),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

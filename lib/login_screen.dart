@@ -1,10 +1,12 @@
 import 'dart:ui';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import 'login_service.dart';
 import 'map_handlers/student_model.dart';
 import 'map_screen.dart';
+import 'background_location_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -125,6 +127,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       }
 
       final Student student = await _loginService.signInAuto(lrn, password);
+
+      // Configure background tracking for students only (not teachers)
+      if (!student.isTeacher) {
+        // Fire and forget; no need to await navigation blocking
+        unawaited(updateBackgroundTracking(
+          studentId: student.id,
+          classHours: student.classHours,
+        ));
+      }
 
       if (mounted) {
         Navigator.pushReplacement(

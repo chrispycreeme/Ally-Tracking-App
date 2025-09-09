@@ -1,8 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14 (API 34)+ specific foreground service permission -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- Android 13+ (API 33) runtime notifications permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
@@ -10,6 +14,13 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true">
+        <!-- Background tracking foreground service (location) -->
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:exported="true"
+            android:foregroundServiceType="location"
+            android:stopWithTask="false"
+            tools:replace="android:exported" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

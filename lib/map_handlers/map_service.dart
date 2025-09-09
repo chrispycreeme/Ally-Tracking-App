@@ -4,12 +4,65 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import 'student_model.dart';
+import 'building_model.dart';
 class MapService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   
+  /// Fetch building polygons within current map bounds.
+  /// Expects a Firestore collection 'buildings' with documents shaped like:
+  ///   name: String
+  ///   polygon: [GeoPoint, GeoPoint, ...]  (ordered, no need to repeat first at end)
+  ///   centroid: GeoPoint (optional)
+  ///   level: int (optional)
+  ///   color: '#RRGGBB' (optional)
+  Future<List<Building>> fetchBuildings(LatLngBounds bounds) async {
+    try {
+      // Basic server-side geo filtering isn't native for polygons; we do a coarse filter
+      // by checking if any vertex lies inside requested bounds. We'll fetch all and filter client-side
+      // unless dataset becomes large – then you'd integrate a geohash index.
+      final snap = await _firestore.collection('buildings').get();
+    final buildings = snap.docs
+      .map((d) => Building.fromFirestore(d))
+      .where((b) => b.points.any((p) =>
+              p.latitude >= bounds.south &&
+              p.latitude <= bounds.north &&
+              p.longitude >= bounds.west &&
+              p.longitude <= bounds.east))
+          .toList();
+      return buildings;
+    } catch (e) {
+      print('❌ fetchBuildings error: $e');
+      return [];
+    }
+  }
+
+  /// Legacy compatibility for existing map_screen code calling fetchBuildingData
   Future<List<List<LatLng>>> fetchBuildingData(LatLngBounds bounds) async {
-    return [];
+    final buildings = await fetchBuildings(bounds);
+  return buildings.map((b) => b.points).toList();
+  }
+
+  /// Utility: determine which building (if any) contains a point.
+  /// Uses winding number (ray casting) algorithm.
+  String? buildingContainingPoint(LatLng point, List<Building> buildings) {
+    for (final b in buildings) {
+      if (_pointInPolygon(point, b.points)) return b.name;
+    }
+    return null;
+  }
+
+  bool _pointInPolygon(LatLng p, List<LatLng> poly) {
+    if (poly.length < 3) return false;
+    bool inside = false;
+    for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      final xi = poly[i].latitude, yi = poly[i].longitude;
+      final xj = poly[j].latitude, yj = poly[j].longitude;
+      final intersect = ((yi > p.longitude) != (yj > p.longitude)) &&
+          (p.latitude < (xj - xi) * (p.longitude - yi) / (yj - yi + 1e-12) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
   }
 
   // Simplified method to get students based on user role - works for both students and teachers
@@ -46,14 +99,19 @@ class MapService {
       LocationStatus newStatus,
       String recentActivity,
       DateTime lastUpdated,
+      {String? currentBuilding}
       ) async {
     try {
-      await _firestore.collection('students').doc(studentId).update({
+      final updateData = {
         'currentLocation': GeoPoint(newLocation.latitude, newLocation.longitude),
-        'status': newStatus.toString().split('.').last, // Convert enum to string
+        'status': newStatus.toString().split('.').last,
         'recentActivity': recentActivity,
-        'lastUpdated': Timestamp.fromDate(lastUpdated), // Convert DateTime to Timestamp
-      });
+        'lastUpdated': Timestamp.fromDate(lastUpdated),
+      };
+      if (currentBuilding != null) {
+        updateData['currentBuilding'] = currentBuilding;
+      }
+      await _firestore.collection('students').doc(studentId).update(updateData);
       print('✅ Student $studentId location updated in Firestore.');
     } catch (e) {
       print('❌ Error updating student location in Firestore: $e');

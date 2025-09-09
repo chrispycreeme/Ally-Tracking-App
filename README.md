@@ -35,8 +35,10 @@
 ### 🗺️ **Interactive Map Interface**
 
 - **Professional Map Display**: Built with `flutter_map` for responsive, interactive mapping
-- **Animated Student Markers**: Smooth pulsing animations and status-based color coding
-- **Building Visualization**: School building polygons for enhanced spatial awareness
+- **Constant-Size Markers**: Static student markers that maintain size across zoom levels
+- **Building Polygon Visualization**: Detailed school building footprints with enhanced visibility
+- **Smart Building Detection**: Automatic identification of which building a student is in
+- **Building Labels**: Labeled markers at building centroids for easy identification
 - **Real-time Synchronization**: Live updates across all connected devices
 - **Intuitive Controls**: Pan, zoom, and auto-center functionality
 
@@ -149,7 +151,8 @@ students/{lrn} {
   lastUpdated: Timestamp,
   role: "student",
   absenceReason?: string,
-  absenceReasonSubmittedAt?: Timestamp
+  absenceReasonSubmittedAt?: Timestamp,
+  currentBuilding?: string // Name of building if inside one
 }
 
 // Teachers Collection
@@ -169,6 +172,15 @@ teachers/{staffId} {
 teacherAssignments/{teacherId} {
   studentIds: string[] // Array of student LRNs
 }
+
+// Buildings Collection (NEW)
+buildings/{buildingId} {
+  name: string, // "Admin Building", "Science Wing", etc.
+  polygon: GeoPoint[], // Array of coordinate vertices (min 3 points)
+  color?: string, // Optional hex color "#6366F1"
+  level?: number, // Optional floor/level indicator
+  centroid?: GeoPoint // Optional cached center point
+}
 ```
 
 ---
@@ -186,7 +198,8 @@ lib/
 ├── notification_service.dart           # Local notifications for geofencing
 └── map_handlers/
     ├── student_model.dart              # Student/Teacher data model
-    ├── map_service.dart                # Firestore data operations
+    ├── building_model.dart             # Building polygon data model (NEW)
+    ├── map_service.dart                # Firestore data operations & building detection
     ├── student_info_modal.dart         # Student detail modal interface
     ├── absence_reason_dialog.dart      # Absence reason submission dialog
     ├── teacher_assignment_service.dart # Teacher-student assignment management
@@ -252,6 +265,11 @@ ios/
 
 ### **✅ Recently Enhanced**
 
+- **Building Polygon System**: Complete building footprint visualization with polygon detection
+- **Building Detection**: Automatic identification of which building students are currently in  
+- **Enhanced Map Visibility**: Higher contrast building polygons with labeled centroids
+- **Constant-Size Markers**: Static student markers that don't scale with zoom levels
+- **Firestore Security Rules**: Added secure access controls for buildings collection
 - **Modern History Interface**: Redesigned activity history with timeline cards and date grouping
 - **Improved Error Handling**: Robust date formatting with graceful fallbacks
 - **UI/UX Refinements**: Fixed text overflow issues and improved dropdown interfaces
@@ -293,10 +311,12 @@ The application is **production-ready** with:
    - `ios/Runner/GoogleService-Info.plist` (iOS)
 
 ### **Database Setup**
-1. Create Firestore collections: `students`, `teachers`, `teacherAssignments`
+
+1. Create Firestore collections: `students`, `teachers`, `teacherAssignments`, `buildings`
 2. Populate with sample data following the schema above
 3. Create Firebase Auth users with email pattern `<id>@school.com`
-4. Configure Firestore security rules for role-based access
+4. Configure Firestore security rules for role-based access (including buildings collection)
+5. Add building polygon data using GeoPoint arrays for each building footprint
 
 ### **Development**
 ```bash

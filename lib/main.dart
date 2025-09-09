@@ -9,6 +9,7 @@ import 'package:intl/date_symbol_data_local.dart';
 // Make sure the path is correct based on your project structure
 import 'notification_service.dart';
 import 'login_screen.dart';
+import 'background_location_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +55,8 @@ Future<void> main() async {
   }
   // Initialize local notifications for geofence alerts
   await NotificationService().init();
+  // Initialize background service (does not start yet)
+  await initBackgroundService();
   runApp(const MyApp());
 }
 

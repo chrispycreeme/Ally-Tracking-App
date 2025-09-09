@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 import 'map_handlers/history_entry.dart';
 import 'map_handlers/history_service.dart';
@@ -63,6 +66,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     final isTeacher = widget.viewer.isTeacher;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC), // _surfaceColor equivalent
+  floatingActionButton: isTeacher ? _buildExportFab() : null,
       body: CustomScrollView(
         slivers: [
           _buildSliverAppBar(isTeacher),
@@ -80,6 +84,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       pinned: true,
       elevation: 0,
       backgroundColor: Colors.transparent,
+  // Removed small popup export here; replaced by a large floating button for visibility.
       flexibleSpace: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -108,6 +113,197 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         onPressed: () => Navigator.pop(context),
       ),
     );
+  }
+
+  Widget _buildExportFab() {
+    return FloatingActionButton.extended(
+      onPressed: _openExportSheet,
+      backgroundColor: _primaryColor,
+      icon: const Icon(Icons.download_rounded, size: 24),
+      label: const Text(
+        "Export History",
+        style: TextStyle(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  void _openExportSheet() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (ctx) {
+        final hasSelected = _selectedStudentId != null && _selectedStudentId!.isNotEmpty;
+        final total = (widget.teacherStudents ?? []).length;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.download_rounded, color: _primaryColor),
+                    SizedBox(width: 12),
+                    Text(
+                      'Export Today\'s Activity',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  DateFormat('MMMM d, yyyy').format(DateTime.now()),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 20),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: const Icon(Icons.person, color: _primaryColor),
+                  ),
+                  title: const Text("Selected Student", style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    hasSelected ? 'Exports only the chosen student\'s logs for today' : 'Select a student first',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  enabled: hasSelected,
+                  onTap: hasSelected
+                      ? () {
+                          Navigator.pop(ctx);
+                          _exportTodayForSelected();
+                        }
+                      : null,
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                ),
+                const SizedBox(height: 4),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    decoration: BoxDecoration(
+                      color: _secondaryColor.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: const Icon(Icons.people_alt_rounded, color: _secondaryColor),
+                  ),
+                  title: const Text("All Students", style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(
+                    total > 0 ? 'Exports today\'s logs for $total students' : 'No students loaded',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  enabled: total > 0,
+                  onTap: total > 0
+                      ? () {
+                          Navigator.pop(ctx);
+                          _exportTodayForAll();
+                        }
+                      : null,
+                  trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'CSV columns: studentId, timestamp (ISO), type, status, message, placeName, latitude, longitude',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportTodayForSelected() async {
+    final studentId = _selectedStudentId;
+    if (studentId == null) return;
+    try {
+      final entries = await _historyService.fetchTodayHistory(studentId);
+      if (entries.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No activity for today to export')));
+        }
+        return;
+      }
+      final csvBuffer = StringBuffer();
+      csvBuffer.writeln('studentId,timestamp,type,status,message,placeName,latitude,longitude');
+      for (final e in entries) {
+        final tsIso = e.timestamp.toIso8601String();
+        final lat = e.location?.latitude.toStringAsFixed(6) ?? '';
+        final lng = e.location?.longitude.toStringAsFixed(6) ?? '';
+        final safe = (String? s) => s?.replaceAll(',', ' ').replaceAll('\n', ' ').trim() ?? '';
+        csvBuffer.writeln([
+          safe(e.studentId),
+          tsIso,
+          safe(e.type),
+            safe(e.status),
+          '"${safe(e.message)}"',
+          safe(e.placeName),
+          lat,
+          lng,
+        ].join(','));
+      }
+      final dir = await getTemporaryDirectory();
+      final fileName = 'activity_${studentId}_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsString(csvBuffer.toString());
+      await Share.shareXFiles([XFile(file.path)], text: 'Today\'s activity for student $studentId');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      }
+    }
+  }
+
+  Future<void> _exportTodayForAll() async {
+    final students = widget.teacherStudents ?? [];
+    if (students.isEmpty) return;
+    try {
+      final ids = students.map((s) => s.id).toList();
+      final entries = await _historyService.fetchTodayHistoryForStudents(ids);
+      if (entries.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No activity for today to export')));
+        }
+        return;
+      }
+      final csvBuffer = StringBuffer();
+      csvBuffer.writeln('studentId,timestamp,type,status,message,placeName,latitude,longitude');
+      for (final e in entries) {
+        final tsIso = e.timestamp.toIso8601String();
+        final lat = e.location?.latitude.toStringAsFixed(6) ?? '';
+        final lng = e.location?.longitude.toStringAsFixed(6) ?? '';
+        final safe = (String? s) => s?.replaceAll(',', ' ').replaceAll('\n', ' ').trim() ?? '';
+        csvBuffer.writeln([
+          safe(e.studentId),
+          tsIso,
+          safe(e.type),
+          safe(e.status),
+          '"${safe(e.message)}"',
+          safe(e.placeName),
+          lat,
+          lng,
+        ].join(','));
+      }
+      final dir = await getTemporaryDirectory();
+      final fileName = 'activity_all_${DateFormat('yyyyMMdd').format(DateTime.now())}.csv';
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsString(csvBuffer.toString());
+      await Share.shareXFiles([XFile(file.path)], text: "Today's activity for all students");
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $e')));
+      }
+    }
   }
 
   Widget _buildStudentPickerSliver() {

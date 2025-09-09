@@ -63,4 +63,31 @@ class HistoryService {
         .snapshots()
         .map((qs) => qs.docs.map((d) => HistoryEntry.fromDoc(d)).toList());
   }
+
+  // Fetch history entries for a given student limited to today (local device date)
+  Future<List<HistoryEntry>> fetchTodayHistory(String studentId) async {
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final qs = await _studentHistoryCol(studentId)
+        .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('timestamp', isLessThan: Timestamp.fromDate(endOfDay))
+        .orderBy('timestamp', descending: false)
+        .get();
+    return qs.docs.map((d) => HistoryEntry.fromDoc(d)).toList();
+  }
+
+  // Fetch today's history for multiple students (in parallel)
+  Future<List<HistoryEntry>> fetchTodayHistoryForStudents(List<String> studentIds) async {
+    final futures = studentIds.map(fetchTodayHistory);
+    final lists = await Future.wait(futures);
+    final all = lists.expand((e) => e).toList();
+    all.sort((a, b) {
+      final byStudent = a.studentId.compareTo(b.studentId);
+      if (byStudent != 0) return byStudent;
+      return a.timestamp.compareTo(b.timestamp);
+    });
+    return all;
+  }
 }

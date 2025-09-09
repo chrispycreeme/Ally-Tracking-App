@@ -24,6 +24,7 @@ class Student {
   final String role; // 'student' or 'teacher'
   final String? absenceReason; // Reason for being outside during class hours
   final DateTime? absenceReasonSubmittedAt; // When the reason was submitted
+  final String? currentBuilding; // Name of building if inside one
 
   Student({
     required this.id,
@@ -39,6 +40,7 @@ class Student {
     this.role = 'student',
     this.absenceReason,
     this.absenceReasonSubmittedAt,
+  this.currentBuilding,
   });
 
   bool get isTeacher => role.toLowerCase() == 'teacher';
@@ -161,6 +163,7 @@ class Student {
       role: (data['role'] as String?) ?? 'student',
       absenceReason: data['absenceReason'] as String?,
       absenceReasonSubmittedAt: (data['absenceReasonSubmittedAt'] as Timestamp?)?.toDate(),
+  currentBuilding: data['currentBuilding'] as String?,
     );
   }
 
@@ -178,6 +181,7 @@ class Student {
     String? role,
     String? absenceReason,
     DateTime? absenceReasonSubmittedAt,
+    String? currentBuilding,
   }) {
     return Student(
       id: id ?? this.id,
@@ -193,6 +197,7 @@ class Student {
       role: role ?? this.role,
       absenceReason: absenceReason ?? this.absenceReason,
       absenceReasonSubmittedAt: absenceReasonSubmittedAt ?? this.absenceReasonSubmittedAt,
+      currentBuilding: currentBuilding ?? this.currentBuilding,
     );
   }
 }
