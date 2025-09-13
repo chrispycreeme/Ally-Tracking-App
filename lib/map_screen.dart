@@ -8,6 +8,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart'; // For location services
 import 'package:geocoding/geocoding.dart'; // Import for geocoding
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'map_handlers/map_service.dart'; // Service to fetch map data
 import 'map_handlers/student_model.dart'; // Student data model
@@ -21,6 +22,7 @@ import 'history_screen.dart';
 import 'map_handlers/history_service.dart';
 import 'background_location_service.dart';
 import 'map_handlers/building_model.dart';
+import 'offline_location_queue.dart';
 
 /// Main StatefulWidget for the map screen.
 class FixedMapScreen extends StatefulWidget {
@@ -109,6 +111,17 @@ class _FixedMapScreenState extends State<FixedMapScreen>
   static const Color _warningColor = Color(0xFFF59E0B);
   static const Color _errorColor = Color(0xFFEF4444);
 
+  // Connectivity subscription (v6 of connectivity_plus emits List<ConnectivityResult>)
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
+  final OfflineLocationQueue _offlineQueue = OfflineLocationQueue();
+  // Offline queue explanation:
+  // When Firestore/location updates fail (likely due to no connectivity),
+  // we enqueue a PendingLocationUpdate in persistent storage. A connectivity
+  // listener attempts to flush the queue whenever network becomes available.
+  // Each successful live send also triggers a flush attempt for any older
+  // buffered updates (FIFO). This ensures eventual consistency while keeping
+  // implementation lightweight without introducing heavier local databases.
+
   @override
   void initState() {
     super.initState();
@@ -140,6 +153,64 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       _fetchLocationAndData();
   // Ensure background tracking still aligned (e.g., app reopened during class hours)
   reevaluateBackgroundTracking();
+    }
+    _offlineQueue.initialize();
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      // If any interface is available, flush
+      if (results.any((r) => r != ConnectivityResult.none)) {
+        _flushOfflineQueue();
+      }
+    });
+  }
+
+  Future<void> _flushOfflineQueue() async {
+    if (_offlineQueue.isEmpty) return;
+    await _offlineQueue.flush((item) async {
+      await _mapService.updateStudentLocation(
+        item.studentId,
+        LatLng(item.latitude, item.longitude),
+        // Assuming LocationStatus enum name stored in status
+        LocationStatus.values.firstWhere(
+          (e) => e.toString().split('.').last == item.status,
+          orElse: () => LocationStatus.unknown,
+        ),
+        item.recentActivity,
+        item.lastUpdated,
+        currentBuilding: item.currentBuilding,
+      );
+    });
+  }
+
+  Future<void> _queueOrSendLocationUpdate({
+    required String studentId,
+    required LatLng location,
+    required LocationStatus status,
+    required String recentActivity,
+    required DateTime lastUpdated,
+    String? currentBuilding,
+  }) async {
+    try {
+      await _mapService.updateStudentLocation(
+        studentId,
+        location,
+        status,
+        recentActivity,
+        lastUpdated,
+        currentBuilding: currentBuilding,
+      );
+      // If send succeeded, attempt flush in case older items exist
+      _flushOfflineQueue();
+    } catch (e) {
+      // Network failure or Firestore offline -> enqueue
+      final pending = _offlineQueue.create(
+        studentId: studentId,
+        location: location,
+        status: status.toString().split('.').last,
+        recentActivity: recentActivity,
+        lastUpdated: lastUpdated,
+        currentBuilding: currentBuilding,
+      );
+      await _offlineQueue.add(pending);
     }
   }
 
@@ -434,7 +505,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
           _student.status,
           _student.recentActivity,
           _student.lastUpdated,
-        );
+        ); // initial attempt (kept synchronous during initial load)
 
         // Show initial status notification
         await NotificationService().showGeofenceNotification(
@@ -513,12 +584,12 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                 await _checkAndPromptForAbsenceReason(newStatus);
 
                 // Update Firestore with new location data
-                await _mapService.updateStudentLocation(
-                  _student.id,
-                  _student.currentLocation,
-                  _student.status,
-                  _student.recentActivity,
-                  _student.lastUpdated,
+                await _queueOrSendLocationUpdate(
+                  studentId: _student.id,
+                  location: _student.currentLocation,
+                  status: _student.status,
+                  recentActivity: _student.recentActivity,
+                  lastUpdated: _student.lastUpdated,
                   currentBuilding: _student.currentBuilding,
                 );
 
@@ -750,6 +821,9 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     
     _assignedIdsSub?.cancel();
     _assignedIdsSub = null;
+    
+    _connectivitySub?.cancel();
+    _connectivitySub = null;
     
     print('✅ All listeners cleaned up');
   }
