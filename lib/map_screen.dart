@@ -23,6 +23,7 @@ import 'map_handlers/history_service.dart';
 import 'background_location_service.dart';
 import 'map_handlers/building_model.dart';
 import 'offline_location_queue.dart';
+import 'map_handlers/attendance_service.dart';
 
 /// Main StatefulWidget for the map screen.
 class FixedMapScreen extends StatefulWidget {
@@ -41,6 +42,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
   final MapController _mapController = MapController();
   final TeacherAssignmentService _assignmentService = TeacherAssignmentService();
   final HistoryService _historyService = HistoryService();
+  final AttendanceService _attendanceService = AttendanceService();
 
   // Student data for the logged-in user
   late Student _student;
@@ -89,6 +91,9 @@ class _FixedMapScreenState extends State<FixedMapScreen>
 
   // Absence reason tracking
   bool _hasAskedForReasonToday = false;
+
+  // Realtime attendance percentage for teachers
+  double? _teacherRealtimeAttendancePct;
 
 
   // Animation Controllers and Animations
@@ -147,6 +152,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       _selectedStudent = _student;
       _subscribeToStudentsStream();
       _subscribeToTeacherAssignments();
+      _refreshTeacherRealtimeAttendance();
       // Finish loading immediately for teacher view
       _isLoading = false;
     } else {
@@ -161,6 +167,23 @@ class _FixedMapScreenState extends State<FixedMapScreen>
         _flushOfflineQueue();
       }
     });
+  }
+
+  Future<void> _refreshTeacherRealtimeAttendance() async {
+    if (!_student.isTeacher) return;
+    try {
+      final summary = await _attendanceService.computeRealtimeForTeacher(
+        _student.id,
+        countOnlyDuringClassHours: true,
+      );
+      if (!mounted) return;
+      setState(() {
+        _teacherRealtimeAttendancePct = summary.percentage;
+      });
+    } catch (e) {
+      // Non-fatal
+      print('⚠️ Failed to compute realtime attendance: $e');
+    }
   }
 
   Future<void> _flushOfflineQueue() async {
@@ -318,6 +341,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
           SnackBar(
             content: const Text('Absence reason submitted successfully'),
             backgroundColor: _successColor,
+            behavior: SnackBarBehavior.fixed,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -329,6 +353,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
           SnackBar(
             content: Text('Error submitting reason: $e'),
             backgroundColor: _errorColor,
+            behavior: SnackBarBehavior.fixed,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -1223,6 +1248,40 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                 ],
               ),
             ),
+            if (_student.isTeacher) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: _refreshTeacherRealtimeAttendance,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha((255 * 0.2).toInt()),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withAlpha((255 * 0.3).toInt()),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.percent, size: 14, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text(
+                        _teacherRealtimeAttendancePct == null
+                            ? 'Attendance — tap to refresh'
+                            : '${_teacherRealtimeAttendancePct!.toStringAsFixed(0)}%',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             // Profile button
             const SizedBox(width: 8),
             GestureDetector(
@@ -1420,8 +1479,11 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     final List<Student> sorted = List<Student>.from(_otherStudents);
     sorted.sort((a, b) => a.id.compareTo(b.id)); // Sort by LRN/id ascending
     if (_lrnFilterQuery.trim().isEmpty) return sorted;
-    final q = _lrnFilterQuery.trim();
-    return sorted.where((s) => s.id.contains(q)).toList();
+    final q = _lrnFilterQuery.trim().toLowerCase();
+    return sorted.where((s) => 
+        s.id.toLowerCase().contains(q) || 
+        s.name.toLowerCase().contains(q)
+    ).toList();
   }
 
   void _showProfilePage() {
@@ -1458,7 +1520,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1466,216 +1528,597 @@ class _FixedMapScreenState extends State<FixedMapScreen>
         return StatefulBuilder(
           builder: (context, setModalState) {
             final visibleStudents = _sortedFilteredOtherStudents();
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 20,
-                  right: 20,
-                  top: 16,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+            return Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.white,
+                    _surfaceColor,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Students (sorted by LRN)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        fontFamily: 'Inter',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _lrnFilterController,
-                      decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.search),
-                        hintText: 'Filter by LRN...',
-                        suffixIcon: _lrnFilterQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear),
-                                onPressed: () {
-                                  _lrnFilterController.clear();
-                                  setState(() => _lrnFilterQuery = '');
-                                  setModalState(() {});
-                                },
-                              )
-                            : null,
-                        filled: true,
-                        fillColor: Colors.grey.shade100,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha((255 * 0.1).toInt()),
+                    blurRadius: 30,
+                    offset: const Offset(0, -10),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 16,
+                    bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Drag handle
+                      Container(
+                        width: 48,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: _primaryColor.withAlpha((255 * 0.3).toInt()),
+                          borderRadius: BorderRadius.circular(3),
                         ),
                       ),
-                      onChanged: (val) {
-                        setState(() => _lrnFilterQuery = val);
-                        setModalState(() {});
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Add student LRN',
-                              prefixIcon: const Icon(Icons.person_add_alt),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                borderSide: BorderSide.none,
+                      const SizedBox(height: 20),
+                      
+                      // Header section
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [_primaryColor, _secondaryColor],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _primaryColor.withAlpha((255 * 0.3).toInt()),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              FontAwesomeIcons.users,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'My Students',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Inter',
+                                    color: _darkTextColor,
+                                  ),
+                                ),
+                                Text(
+                                  '${visibleStudents.length} student${visibleStudents.length != 1 ? 's' : ''} assigned',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _lightTextColor,
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _successColor.withAlpha((255 * 0.1).toInt()),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: _successColor.withAlpha((255 * 0.2).toInt()),
                               ),
                             ),
-                            onSubmitted: (val) async {
-                              final trimmed = val.trim();
-                              if (trimmed.isEmpty) return;
-                              final ok = await _assignmentService.addStudentToTeacher(_student.id, trimmed);
-                              if (!mounted) return;
-                              if (!ok) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Failed to add "$trimmed" (not found).')),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Added $trimmed.')),
-                                );
-                              }
-                              setModalState(() {});
-                            },
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.circle,
+                                  size: 8,
+                                  color: _successColor,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '${visibleStudents.where((s) => s.isOnline).length} online',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: _successColor,
+                                    fontFamily: 'Inter',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      
+                      // Enhanced search bar
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha((255 * 0.05).toInt()),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: _lrnFilterController,
+                          decoration: InputDecoration(
+                            prefixIcon: Icon(Icons.search, color: _primaryColor),
+                            hintText: 'Search by LRN or name...',
+                            hintStyle: TextStyle(
+                              color: _lightTextColor,
+                              fontFamily: 'Inter',
+                            ),
+                            suffixIcon: _lrnFilterQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.clear, color: _lightTextColor),
+                                    onPressed: () {
+                                      _lrnFilterController.clear();
+                                      setState(() => _lrnFilterQuery = '');
+                                      setModalState(() {});
+                                    },
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(color: _primaryColor, width: 2),
+                            ),
+                          ),
+                          onChanged: (val) {
+                            setState(() => _lrnFilterQuery = val);
+                            setModalState(() {});
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      
+                      // Add student section
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: _accentColor.withAlpha((255 * 0.05).toInt()),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _accentColor.withAlpha((255 * 0.2).toInt()),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Tooltip(
-                          message: 'Refresh assignments',
-                          child: IconButton(
-                            icon: const Icon(Icons.refresh),
-                            onPressed: () => setModalState(() {}),
-                          ),
-                        )
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Flexible(
-                      child: visibleStudents.isEmpty
-                          ? const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 40),
-                              child: Text(
-                                'No students match that LRN.',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              itemCount: visibleStudents.length,
-                              itemBuilder: (context, index) {
-                                final s = visibleStudents[index];
-                                final bool hasAbsenceReason = !s.isTeacher && 
-                                    s.status == LocationStatus.outsideSchool &&
-                                    s.isDuringClassHours &&
-                                    s.absenceReason != null && 
-                                    s.absenceReasonSubmittedAt != null &&
-                                    _isSameDay(s.absenceReasonSubmittedAt!, DateTime.now());
-                                
-                                return ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundImage: NetworkImage(s.profileImageUrl),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                decoration: InputDecoration(
+                                  hintText: 'Add student by LRN',
+                                  hintStyle: TextStyle(
+                                    color: _lightTextColor,
+                                    fontFamily: 'Inter',
                                   ),
-                                  title: Text('${s.id}  •  ${s.name}'),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('${s.gradeLevel} • ${s.statusDisplay}'),
-                                      if (hasAbsenceReason) ...[
-                                        const SizedBox(height: 4),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: _warningColor.withAlpha((255 * 0.1).toInt()),
-                                            borderRadius: BorderRadius.circular(8),
-                                            border: Border.all(
-                                              color: _warningColor.withAlpha((255 * 0.3).toInt()),
-                                              width: 1,
+                                  prefixIcon: Icon(Icons.person_add_alt, color: _accentColor),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                ),
+                                onSubmitted: (val) async {
+                                  final trimmed = val.trim();
+                                  if (trimmed.isEmpty) return;
+                                  final ok = await _assignmentService.addStudentToTeacher(_student.id, trimmed);
+                                  if (!mounted) return;
+                                  if (!ok) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed to add "$trimmed" (not found).'),
+                                        backgroundColor: _errorColor,
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Added $trimmed successfully!'),
+                                        backgroundColor: _successColor,
+                                      ),
+                                    );
+                                  }
+                                  setModalState(() {});
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: _accentColor.withAlpha((255 * 0.1).toInt()),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: IconButton(
+                                icon: Icon(Icons.refresh, color: _accentColor),
+                                tooltip: 'Refresh assignments',
+                                onPressed: () => setModalState(() {}),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      // Students list
+                      Flexible(
+                        child: visibleStudents.isEmpty
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(vertical: 40),
+                                child: Column(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: _lightTextColor.withAlpha((255 * 0.1).toInt()),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Icon(
+                                        FontAwesomeIcons.userGroup,
+                                        size: 40,
+                                        color: _lightTextColor,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _lrnFilterQuery.isNotEmpty
+                                          ? 'No students match that search'
+                                          : 'No students assigned yet',
+                                      style: TextStyle(
+                                        color: _lightTextColor,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        fontFamily: 'Inter',
+                                      ),
+                                    ),
+                                    if (_lrnFilterQuery.isEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Add students using the field above',
+                                        style: TextStyle(
+                                          color: _lightTextColor,
+                                          fontSize: 14,
+                                          fontFamily: 'Inter',
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              )
+                            : ListView.separated(
+                                shrinkWrap: true,
+                                itemCount: visibleStudents.length,
+                                separatorBuilder: (context, index) => const SizedBox(height: 8),
+                                itemBuilder: (context, index) {
+                                  final s = visibleStudents[index];
+                                  final bool hasAbsenceReason = !s.isTeacher && 
+                                      s.status == LocationStatus.outsideSchool &&
+                                      s.isDuringClassHours &&
+                                      s.absenceReason != null && 
+                                      s.absenceReasonSubmittedAt != null &&
+                                      _isSameDay(s.absenceReasonSubmittedAt!, DateTime.now());
+                                  
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withAlpha((255 * 0.05).toInt()),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                      border: Border.all(
+                                        color: s.isOnline 
+                                            ? _successColor.withAlpha((255 * 0.2).toInt())
+                                            : Colors.grey.withAlpha((255 * 0.2).toInt()),
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: ListTile(
+                                      contentPadding: const EdgeInsets.all(16),
+                                      leading: Stack(
+                                        children: [
+                                          Container(
+                                            width: 50,
+                                            height: 50,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              border: Border.all(
+                                                color: s.isOnline ? _successColor : _warningColor,
+                                                width: 3,
+                                              ),
+                                            ),
+                                            child: CircleAvatar(
+                                              radius: 22,
+                                              backgroundImage: NetworkImage(s.profileImageUrl),
                                             ),
                                           ),
-                                          child: Row(
+                                          Positioned(
+                                            bottom: 0,
+                                            right: 0,
+                                            child: Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: BoxDecoration(
+                                                color: s.isOnline ? _successColor : _warningColor,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(color: Colors.white, width: 2),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              s.name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                fontFamily: 'Inter',
+                                              ),
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: _primaryColor.withAlpha((255 * 0.1).toInt()),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              s.id,
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: _primaryColor,
+                                                fontFamily: 'Inter',
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(height: 8),
+                                          Row(
                                             children: [
-                                              Icon(
-                                                Icons.info_outline,
-                                                size: 12,
-                                                color: _warningColor,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  'Absent: ${s.absenceReason!}',
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: _warningColor,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
                                               Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                                 decoration: BoxDecoration(
-                                                  color: _warningColor.withAlpha((255 * 0.2).toInt()),
-                                                  borderRadius: BorderRadius.circular(4),
+                                                  color: s.isOnline 
+                                                      ? _successColor.withAlpha((255 * 0.1).toInt())
+                                                      : _warningColor.withAlpha((255 * 0.1).toInt()),
+                                                  borderRadius: BorderRadius.circular(6),
                                                 ),
-                                                child: Text(
-                                                  "ABSENT",
-                                                  style: TextStyle(
-                                                    fontSize: 8,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: _warningColor,
-                                                  ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      width: 6,
+                                                      height: 6,
+                                                      decoration: BoxDecoration(
+                                                        color: s.isOnline ? _successColor : _warningColor,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      s.isOnline ? 'Online' : 'Offline',
+                                                      style: TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w600,
+                                                        color: s.isOnline ? _successColor : _warningColor,
+                                                        fontFamily: 'Inter',
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                s.lastSeenDisplay,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: _lightTextColor,
+                                                  fontFamily: 'Inter',
                                                 ),
                                               ),
                                             ],
                                           ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.school,
+                                                size: 14,
+                                                color: _lightTextColor,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                s.gradeLevel,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: _lightTextColor,
+                                                  fontFamily: 'Inter',
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Icon(
+                                                s.status == LocationStatus.insideSchool
+                                                    ? Icons.location_on
+                                                    : Icons.location_off,
+                                                size: 14,
+                                                color: s.status == LocationStatus.insideSchool
+                                                    ? _successColor
+                                                    : _errorColor,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                s.statusDisplay,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: s.status == LocationStatus.insideSchool
+                                                      ? _successColor
+                                                      : _errorColor,
+                                                  fontWeight: FontWeight.w500,
+                                                  fontFamily: 'Inter',
+                                                ),
+                                              ),
+                                              if (s.currentBuilding != null) ...[
+                                                const SizedBox(width: 12),
+                                                Icon(
+                                                  Icons.business,
+                                                  size: 14,
+                                                  color: _lightTextColor,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  s.currentBuilding!,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: _lightTextColor,
+                                                    fontFamily: 'Inter',
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          if (hasAbsenceReason) ...[
+                                            const SizedBox(height: 8),
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: _warningColor.withAlpha((255 * 0.08).toInt()),
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: _warningColor.withAlpha((255 * 0.2).toInt()),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.info_outline,
+                                                    size: 16,
+                                                    color: _warningColor,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Absent: ${s.absenceReason!}',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: _warningColor,
+                                                        fontWeight: FontWeight.w500,
+                                                        fontFamily: 'Inter',
+                                                      ),
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: _warningColor.withAlpha((255 * 0.2).toInt()),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                    ),
+                                                    child: Text(
+                                                      "ABSENT",
+                                                      style: TextStyle(
+                                                        fontSize: 9,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: _warningColor,
+                                                        fontFamily: 'Inter',
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                      trailing: Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: _errorColor.withAlpha((255 * 0.1).toInt()),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
-                                      ],
-                                    ],
-                                  ),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.remove_circle_outline, color: Colors.redAccent),
-                                    tooltip: 'Remove from monitoring',
-                                    onPressed: () async {
-                                      final confirmed = await _confirmRemoval(s.id);
-                                      if (confirmed != true) return;
-                                      await _assignmentService.removeStudentFromTeacher(_student.id, s.id);
-                                      if (!mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Removed ${s.id}.')),
-                                      );
-                                      setModalState(() {});
-                                    },
-                                  ),
-                                  onTap: () {
-                                    Navigator.of(context).pop();
-                                    // Center map on selected student & show modal
-                                    Future.delayed(const Duration(milliseconds: 50), () {
-                                      _animatedMapMove(s.currentLocation, 18.5);
-                                      _showStudentModal(s);
-                                    });
-                                  },
-                                );
-                              },
-                            ),
-                    ),
-                  ],
+                                        child: InkWell(
+                                          onTap: () async {
+                                            final confirmed = await _confirmRemoval(s.id);
+                                            if (confirmed != true) return;
+                                            await _assignmentService.removeStudentFromTeacher(_student.id, s.id);
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Removed ${s.id} from monitoring'),
+                                                backgroundColor: _errorColor,
+                                              ),
+                                            );
+                                            setModalState(() {});
+                                          },
+                                          child: Icon(
+                                            Icons.person_remove,
+                                            color: _errorColor,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
+                                      onTap: () {
+                                        Navigator.of(context).pop();
+                                        // Center map on selected student & show modal
+                                        Future.delayed(const Duration(milliseconds: 50), () {
+                                          _animatedMapMove(s.currentLocation, 18.5);
+                                          _showStudentModal(s);
+                                        });
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );
@@ -1689,17 +2132,85 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Student'),
-        content: Text('Remove $studentId from your monitoring list?'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _errorColor.withAlpha((255 * 0.1).toInt()),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.person_remove,
+                color: _errorColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Remove Student',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Inter',
+              ),
+            ),
+          ],
+        ),
+        content: RichText(
+          text: TextSpan(
+            style: TextStyle(
+              color: _darkTextColor,
+              fontSize: 14,
+              fontFamily: 'Inter',
+            ),
+            children: [
+              const TextSpan(text: 'Remove '),
+              TextSpan(
+                text: studentId,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: _primaryColor,
+                ),
+              ),
+              const TextSpan(text: ' from your monitoring list?\n\nThis action can be undone by adding them back.'),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            style: TextButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: _lightTextColor,
+                fontFamily: 'Inter',
+              ),
+            ),
           ),
-          FilledButton(
+          ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('Remove'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _errorColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Remove',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Inter',
+              ),
+            ),
           ),
         ],
       ),

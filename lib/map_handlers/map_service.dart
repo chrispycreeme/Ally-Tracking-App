@@ -150,4 +150,58 @@ class MapService {
       rethrow;
     }
   }
+
+  /// Add or update a planned absence for a specific date.
+  /// Stores under students/{id}/plannedAbsences/{YYYYMMDD}
+  Future<void> addPlannedAbsence(
+    String studentId,
+    DateTime forDate,
+    String reason,
+    DateTime submittedAt,
+  ) async {
+    try {
+      if (studentId.trim().isEmpty) throw Exception('Student ID cannot be empty');
+      if (reason.trim().isEmpty) throw Exception('Planned absence reason cannot be empty');
+      final key = _dateKey(forDate);
+      await _firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('plannedAbsences')
+          .doc(key)
+          .set({
+        'forDate': Timestamp.fromDate(DateTime(forDate.year, forDate.month, forDate.day)),
+        'reason': reason.trim(),
+        'submittedAt': Timestamp.fromDate(submittedAt),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('❌ addPlannedAbsence error: $e');
+      rethrow;
+    }
+  }
+
+  /// Get planned absence document for a specific date; returns map or null.
+  Future<Map<String, dynamic>?> getPlannedAbsenceForDate(
+    String studentId,
+    DateTime forDate,
+  ) async {
+    try {
+      final key = _dateKey(forDate);
+      final doc = await _firestore
+          .collection('students')
+          .doc(studentId)
+          .collection('plannedAbsences')
+          .doc(key)
+          .get();
+      if (!doc.exists) return null;
+      return doc.data() as Map<String, dynamic>;
+    } catch (e) {
+      print('❌ getPlannedAbsenceForDate error: $e');
+      return null;
+    }
+  }
+
+  String _dateKey(DateTime d) => '${d.year.toString().padLeft(4, '0')}'
+      '${d.month.toString().padLeft(2, '0')}'
+      '${d.day.toString().padLeft(2, '0')}'
+  ;
 }

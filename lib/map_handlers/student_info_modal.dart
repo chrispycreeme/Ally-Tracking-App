@@ -102,6 +102,8 @@ class StudentInfoModal extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _buildPresenceHeader(),
+        const SizedBox(height: 16),
         // Absence Reason Section - Only show if student is outside during class hours
         if (!student.isTeacher && 
             student.status == LocationStatus.outsideSchool &&
@@ -125,6 +127,88 @@ class StudentInfoModal extends StatelessWidget {
         const SizedBox(height: 12),
         _buildActivityTimeline(),
       ],
+    );
+  }
+
+  Widget _buildPresenceHeader() {
+    final online = student.isOnline;
+    final color = online ? _successColor : _warningColor;
+    final label = online ? 'Online' : 'Offline';
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withAlpha((255 * 0.06).toInt()),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha((255 * 0.2).toInt())),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: Colors.white,
+            backgroundImage: NetworkImage(student.profileImageUrl),
+            onBackgroundImageError: (_, __) {},
+          ),
+          const SizedBox(width: 12),
+          // Name + chips
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        student.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: _darkTextColor),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _chip(label, color),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    _chip('Status: ${student.statusDisplay}', _primaryColor),
+                    if (student.currentBuilding != null && student.currentBuilding!.isNotEmpty)
+                      _chip('Building: ${student.currentBuilding}', _primaryColor),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            online ? 'now' : student.lastSeenDisplay,
+            style: TextStyle(fontSize: 12, color: _lightTextColor),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withAlpha((255 * 0.12).toInt()),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withAlpha((255 * 0.25).toInt())),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: _darkTextColor,
+        ),
+      ),
     );
   }
 

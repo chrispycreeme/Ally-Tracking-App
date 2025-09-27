@@ -45,6 +45,21 @@ class Student {
 
   bool get isTeacher => role.toLowerCase() == 'teacher';
 
+  // Consider a student online if updated within the last 2 minutes
+  bool get isOnline {
+    final diff = DateTime.now().difference(lastUpdated);
+    return diff.inSeconds <= 120; // 2 minutes
+  }
+
+  String get lastSeenDisplay {
+    final diff = DateTime.now().difference(lastUpdated);
+    if (diff.inSeconds < 10) return 'just now';
+    if (diff.inMinutes < 1) return '${diff.inSeconds}s ago';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
   // Check if current time is during class hours
   bool get isDuringClassHours {
     if (classHours == 'N/A' || classHours.isEmpty) return false;

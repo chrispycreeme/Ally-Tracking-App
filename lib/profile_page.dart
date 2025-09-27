@@ -4,6 +4,8 @@ import 'map_handlers/student_model.dart';
 import 'map_handlers/map_service.dart';
 import 'map_handlers/absence_reason_dialog.dart';
 import 'map_handlers/history_service.dart';
+import 'map_handlers/planned_absence_dialog.dart';
+import 'map_handlers/attendance_service.dart';
 
 // Ensure the AbsenceReasonDialog class is defined in the imported file or define it below if missing.
 import 'login_service.dart';
@@ -29,10 +31,18 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final LoginService _loginService = LoginService();
   final MapService _mapService = MapService(); // Initialize once
+  final AttendanceService _attendanceService = AttendanceService();
   
   bool _isLoading = false;
   String _profileImageUrl = '';
 
+  // Teacher attendance state
+  AttendanceSummary? _realtimeSummary;
+  AttendanceSummary? _todaySummary;
+  bool _isLoadingRealtime = false;
+  bool _isLoadingToday = false;
+  DateTime? _lastAttendanceRefresh;
+  
   // Enhanced color palette matching the main app
   static const Color _primaryColor = Color(0xFF6366F1);
   static const Color _secondaryColor = Color(0xFF8B5CF6);
@@ -48,6 +58,12 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _profileImageUrl = widget.student.profileImageUrl;
+    if (widget.student.isTeacher) {
+      // Kick off initial attendance loads
+      Future.microtask(() async {
+        await _refreshAttendance();
+      });
+    }
   }
 
   Future<void> _pickAndUploadImage() async {
@@ -98,7 +114,6 @@ class _ProfilePageState extends State<ProfilePage> {
       print('⚠️ Cannot show snackbar: context not available');
       return;
     }
-    
     try {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -110,9 +125,6 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
           backgroundColor: color,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          margin: const EdgeInsets.all(16),
         ),
       );
     } catch (e) {
@@ -215,17 +227,24 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           children: [
             SizedBox(height: isSmallScreen ? 12 : 20),
-            
+
+            // Teacher attendance section
+            if (widget.student.isTeacher) _buildTeacherAttendanceSection(),
+            if (widget.student.isTeacher) SizedBox(height: isSmallScreen ? 16 : 24),
+
             // Absence Reason Section - Only show if student is outside during class hours
             if (!widget.student.isTeacher && 
                 widget.student.status == LocationStatus.outsideSchool &&
                 widget.student.isDuringClassHours)
               _buildAbsenceStatusSection(),
-            
             if (!widget.student.isTeacher && 
                 widget.student.status == LocationStatus.outsideSchool &&
                 widget.student.isDuringClassHours)
               SizedBox(height: isSmallScreen ? 16 : 24),
+
+            // Planned Absence (students can submit for tomorrow or future date)
+            if (!widget.student.isTeacher) _buildPlannedAbsenceSection(),
+            if (!widget.student.isTeacher) SizedBox(height: isSmallScreen ? 16 : 24),
             
             // Profile Picture Section
             _buildEnhancedProfileSection(),
@@ -246,6 +265,382 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _refreshAttendance() async {
+    if (!widget.student.isTeacher) return;
+    setState(() {
+      _isLoadingRealtime = true;
+      _isLoadingToday = true;
+    });
+    try {
+      await Future.wait([
+        _loadRealtime(),
+        _loadToday(),
+      ]);
+      setState(() {
+        _lastAttendanceRefresh = DateTime.now();
+      });
+    } catch (e) {
+      _showSnackBar('Failed to refresh attendance: $e', _errorColor);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingRealtime = false;
+          _isLoadingToday = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadRealtime() async {
+    try {
+      final s = await _attendanceService.computeRealtimeForTeacher(
+        widget.student.id,
+        countOnlyDuringClassHours: true,
+      );
+      if (!mounted) return;
+      setState(() => _realtimeSummary = s);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> _loadToday() async {
+    try {
+      final s = await _attendanceService.computeDailyForTeacher(
+        widget.student.id,
+        date: DateTime.now(),
+        requireMinimumMinutesInside: 0,
+        requireOnlineForPresent: true,
+      );
+      if (!mounted) return;
+      setState(() => _todaySummary = s);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Widget _buildTeacherAttendanceSection() {
+    final rt = _realtimeSummary;
+    final td = _todaySummary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha((255 * 0.06).toInt()),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _primaryColor.withAlpha((255 * 0.1).toInt()),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.insights, color: _primaryColor),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Attendance Overview',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: _isLoadingRealtime || _isLoadingToday ? null : _refreshAttendance,
+                  icon: _isLoadingRealtime || _isLoadingToday
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _attendanceStatCard(
+                    title: 'Realtime',
+                    subtitle: _formatAsOf(rt?.asOf),
+                    value: rt == null
+                        ? '--%'
+                        : '${rt.percentage.toStringAsFixed(0)}%',
+                    chip: rt == null
+                        ? '—'
+                        : '${rt.presentCount}/${rt.eligibleCount} present',
+                    color: _primaryColor,
+                    onTap: rt == null ? null : () => _showAttendanceDetails(rt, 'Realtime Attendance'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _attendanceStatCard(
+                    title: "Today's", 
+                    subtitle: _formatAsOf(td?.asOf),
+                    value: td == null
+                        ? '--%'
+                        : '${td.percentage.toStringAsFixed(0)}%',
+                    chip: td == null
+                        ? '—'
+                        : '${td.presentCount}/${td.eligibleCount} present',
+                    color: _secondaryColor,
+                    onTap: td == null ? null : () => _showAttendanceDetails(td, "Today's Attendance"),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Today's rule: present requires being online during class hours",
+              style: TextStyle(color: _lightTextColor, fontSize: 11),
+            ),
+            if (_lastAttendanceRefresh != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Last updated: ${_formatAsOf(_lastAttendanceRefresh)}',
+                style: TextStyle(color: _lightTextColor, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attendanceStatCard({
+    required String title,
+    required String? subtitle,
+    required String value,
+    required String chip,
+    required Color color,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: color.withAlpha((255 * 0.06).toInt()),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withAlpha((255 * 0.25).toInt())),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text(value, style: TextStyle(color: color, fontSize: 28, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: color.withAlpha((255 * 0.12).toInt()),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(chip, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 8),
+              Text(subtitle, style: const TextStyle(fontSize: 11)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _formatAsOf(DateTime? dt) {
+    if (dt == null) return null;
+    final d = dt;
+    final two = (int n) => n.toString().padLeft(2, '0');
+    return '${d.year}-${two(d.month)}-${two(d.day)} ${two(d.hour)}:${two(d.minute)}';
+  }
+
+  void _showAttendanceDetails(AttendanceSummary summary, String title) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Present: ${summary.presentCount}/${summary.eligibleCount} • Excused: ${summary.excusedCount} • Assigned: ${summary.totalAssigned}',
+                  style: TextStyle(color: _lightTextColor),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: summary.details.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (_, i) {
+                      final d = summary.details[i];
+                      return ListTile(
+                        dense: true,
+                        leading: Icon(
+                          d.present
+                              ? Icons.check_circle_rounded
+                              : (d.excused ? Icons.info_rounded : Icons.cancel_rounded),
+                          color: d.present ? _successColor : (d.excused ? _warningColor : _errorColor),
+                        ),
+                        title: Text('${d.studentId}  •  ${d.name}'),
+                        subtitle: Text(
+                          d.counted
+                              ? (d.present
+                                  ? 'Present'
+                                  : (d.excused ? 'Absent (Excused)' : 'Absent'))
+                              : 'Not in class hours',
+                        ),
+                        trailing: d.presentDurationMinutes != null
+                            ? Text('${d.presentDurationMinutes} min')
+                            : null,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showPlannedAbsenceDialog() {
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PlannedAbsenceDialog(
+        studentName: widget.student.name,
+      ),
+    ).then((result) async {
+      if (result == null) return;
+      final forDate = result['forDate'] as DateTime?;
+      final reason = result['reason'] as String?;
+      if (forDate == null || reason == null) return;
+      await _handlePlannedAbsenceSubmission(forDate, reason);
+    });
+  }
+
+  Widget _buildPlannedAbsenceSection() {
+    final screenSize = MediaQuery.of(context).size;
+    final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha((255 * 0.05).toInt()),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+        border: Border.all(color: _primaryColor.withAlpha((255 * 0.15).toInt())),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _primaryColor.withAlpha((255 * 0.1).toInt()),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.event_busy, color: _primaryColor),
+              ),
+              const SizedBox(width: 12),
+              const Text('Planned Absence', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Plan an absence for a future date with a reason.',
+            style: TextStyle(color: _lightTextColor, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isLoading ? null : _showPlannedAbsenceDialog,
+              icon: const Icon(Icons.edit_calendar_outlined),
+              label: const Text('Plan Absence'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handlePlannedAbsenceSubmission(DateTime forDate, String reason) async {
+    try {
+      if (reason.trim().isEmpty) throw Exception('Reason cannot be empty');
+      if (widget.student.id.trim().isEmpty) throw Exception('Student ID is missing');
+      setState(() => _isLoading = true);
+      final now = DateTime.now();
+      await _mapService.addPlannedAbsence(widget.student.id, forDate, reason, now);
+      // Log to history for visibility
+      try {
+        await HistoryService().addAbsenceReason(
+          studentId: widget.student.id,
+          timestamp: now,
+          reason: 'Planned for ${forDate.year}-${forDate.month.toString().padLeft(2, '0')}-${forDate.day.toString().padLeft(2, '0')}: $reason',
+        );
+      } catch (_) {}
+      if (mounted) {
+        setState(() => _isLoading = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showSnackBar('Planned absence submitted.', _successColor);
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showSnackBar('Failed to submit planned absence: $e', _errorColor);
+        });
+      }
+    }
   }
 
   Widget _buildEnhancedProfileSection() {

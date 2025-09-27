@@ -358,3 +358,35 @@ Contact the development team for licensing inquiries.
 [![Powered by Firebase](https://img.shields.io/badge/Powered%20by-Firebase-orange)](https://firebase.google.com)
 
 </div>
+
+---
+
+## 📈 Attendance Percentage API
+
+The file `lib/map_handlers/attendance_service.dart` provides methods to compute attendance percentages for a teacher's assigned students.
+
+- Realtime percentage (counts only students currently within their class hours):
+
+```dart
+final service = AttendanceService();
+final summary = await service.computeRealtimeForTeacher(teacherId);
+print('Attendance: ${summary.percentage.toStringAsFixed(0)}%');
+```
+
+- Daily percentage for a specific date (optionally require minimum minutes inside during class hours):
+
+```dart
+final summary = await service.computeDailyForTeacher(
+  teacherId,
+  date: DateTime.now(),
+  requireMinimumMinutesInside: 15,
+);
+for (final d in summary.details) {
+  print('${d.name}: ${d.present ? 'Present' : 'Absent'} (${d.presentDurationMinutes ?? 0} min)');
+}
+```
+
+Assumptions:
+- Presence is inferred from `students/{id}/history` entries with `type: 'status_change'` and `status` set to "Inside School" or "Outside School".
+- `classHours` supports formats like `08:00-15:00` or `8:00 AM - 3:00 PM` and defines eligibility windows.
+- An absence is marked excused if a same‑day `absenceReason` contains the word "Excused".
