@@ -41,6 +41,21 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>processing</string>
+	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ALLY needs your location during class hours so teachers can confirm attendance.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>ALLY uses background location to keep your status updated even when the app is not open.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Continuous location access lets ALLY pause or resume monitoring automatically when you are excused.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ALLY uses the camera when you update your profile picture.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ALLY needs photo library access to let you choose a profile picture.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

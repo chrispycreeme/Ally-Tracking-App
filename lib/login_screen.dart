@@ -385,21 +385,35 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Widget _buildGlassmorphicContainer({required Widget child}) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.all(Radius.circular(50)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.only(top: 24, bottom: 24, left: 35, right: 35),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.4),
-            borderRadius: const BorderRadius.all(Radius.circular(25)),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.2),
-              width: 1.5,
-            ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.only(top: 28, bottom: 28, left: 36, right: 36),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.5),
+        borderRadius: const BorderRadius.all(Radius.circular(28)),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF894DFF).withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
           ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.all(Radius.circular(26)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
           child: child,
         ),
       ),
@@ -420,10 +434,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(35.0),
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(18.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 20 : 25, vertical: 0),
+      padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 20 : 24, vertical: 0),
       child: SizedBox(
         height: isSmallScreen ? 75 : (60 + 15 + 14),
         child: Stack(
@@ -432,13 +453,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: EdgeInsets.only(left: isSmallScreen ? 12 : 16, top: isSmallScreen ? 12 : 15),
+                  padding: EdgeInsets.only(left: isSmallScreen ? 12 : 16, top: isSmallScreen ? 13 : 16),
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontSize: isSmallScreen ? 12 : 14,
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w500,
+                      fontSize: isSmallScreen ? 12 : 13,
+                      color: const Color(0xFF64748B),
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ),
@@ -448,9 +470,17 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     controller: controller,
                     obscureText: obscureText,
                     keyboardType: keyboardType,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1E293B),
+                    ),
                     decoration: InputDecoration(
                       hintText: hint,
-                      hintStyle: TextStyle(color: Colors.black.withOpacity(0.4)),
+                      hintStyle: TextStyle(
+                        color: Colors.black.withOpacity(0.35),
+                        fontWeight: FontWeight.w400,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(30.0),
                         borderSide: BorderSide.none,
@@ -470,24 +500,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               child: Align(
                 alignment: Alignment.centerRight,
                 child: Padding(
-                  padding: EdgeInsets.only(right: isSmallScreen ? 14.0 : 18.0),
-                  child: icon == Icons.key_outlined
-                      ? Icon(
-                          Icons.key,
-                          color: const Color(0xFF894DFF),
-                          size: isSmallScreen ? 24 : 32,
-                        )
-                      : icon == Icons.email_outlined
-                          ? Icon(
-                              Icons.email,
-                              color: const Color(0xFF894DFF),
-                              size: isSmallScreen ? 24 : 32,
-                            )
-                          : Icon(
-                              icon,
-                              color: iconColor,
-                              size: isSmallScreen ? 24 : 32,
-                            ),
+                  padding: EdgeInsets.only(right: isSmallScreen ? 16.0 : 20.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: iconColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      icon == Icons.key_outlined ? Icons.key :
+                      icon == Icons.email_outlined ? Icons.email : icon,
+                      color: iconColor,
+                      size: isSmallScreen ? 20 : 24,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -511,27 +537,41 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [primaryColor, gradientEndColor],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(30.0),
+        borderRadius: BorderRadius.circular(18.0),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withOpacity(0.4),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: ElevatedButton(
         onPressed: onPressed ?? () {},
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 16 : 20),
+          padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 18 : 22),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30.0),
+            borderRadius: BorderRadius.circular(18.0),
           ),
         ),
         child: Text(
           buttonText,
           style: TextStyle(
             fontSize: isSmallScreen ? 16 : 18,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             color: Colors.white,
+            letterSpacing: 0.5,
           ),
         ),
       ),

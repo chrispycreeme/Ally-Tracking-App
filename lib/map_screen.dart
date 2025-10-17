@@ -323,6 +323,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       
       // Update Firestore with the absence reason
       await _mapService.updateAbsenceReason(_student.id, reason, now);
+      unawaited(reevaluateBackgroundTracking());
 
       // Log to history
       try {
@@ -1143,12 +1144,18 @@ class _FixedMapScreenState extends State<FixedMapScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: _primaryColor.withAlpha((255 * 0.3).toInt()),
-              blurRadius: 30,
-              offset: const Offset(0, 15),
+              color: _primaryColor.withAlpha((255 * 0.35).toInt()),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+              spreadRadius: 0,
+            ),
+            BoxShadow(
+              color: Colors.black.withAlpha((255 * 0.08).toInt()),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -1157,9 +1164,16 @@ class _FixedMapScreenState extends State<FixedMapScreen>
             Container(
               width: 56,
               height: 56,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha((255 * 0.1).toInt()),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Padding(
                 padding: const EdgeInsets.all(3.0),
@@ -1185,6 +1199,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
+                      letterSpacing: 0.2,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1193,6 +1208,7 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                     style: TextStyle(
                       color: Colors.white.withAlpha((255 * 0.9).toInt()),
                       fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   if (studentToShow.currentBuilding != null) ...[
@@ -1211,14 +1227,21 @@ class _FixedMapScreenState extends State<FixedMapScreen>
             ),
             // FIXED: Status indicator with dot and text
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha((255 * 0.2).toInt()),
-                borderRadius: BorderRadius.circular(20),
+                color: Colors.white.withAlpha((255 * 0.25).toInt()),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withAlpha((255 * 0.3).toInt()),
-                  width: 1,
+                  color: Colors.white.withAlpha((255 * 0.4).toInt()),
+                  width: 1.5,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha((255 * 0.1).toInt()),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1233,6 +1256,16 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                         color: studentToShow.status == LocationStatus.insideSchool
                             ? _successColor
                             : _warningColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (studentToShow.status == LocationStatus.insideSchool
+                                    ? _successColor
+                                    : _warningColor)
+                                .withAlpha((255 * 0.5).toInt()),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1241,8 +1274,9 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                     studentToShow.statusDisplay,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                       fontSize: 12,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ],
@@ -1253,14 +1287,21 @@ class _FixedMapScreenState extends State<FixedMapScreen>
               GestureDetector(
                 onTap: _refreshTeacherRealtimeAttendance,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withAlpha((255 * 0.2).toInt()),
-                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withAlpha((255 * 0.25).toInt()),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white.withAlpha((255 * 0.3).toInt()),
-                      width: 1,
+                      color: Colors.white.withAlpha((255 * 0.4).toInt()),
+                      width: 1.5,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha((255 * 0.1).toInt()),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1273,8 +1314,9 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                             : '${_teacherRealtimeAttendancePct!.toStringAsFixed(0)}%',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w700,
                           fontSize: 12,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ],
@@ -1287,14 +1329,21 @@ class _FixedMapScreenState extends State<FixedMapScreen>
             GestureDetector(
               onTap: _showProfilePage,
               child: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withAlpha((255 * 0.2).toInt()),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withAlpha((255 * 0.25).toInt()),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: Colors.white.withAlpha((255 * 0.3).toInt()),
-                    width: 1,
+                    color: Colors.white.withAlpha((255 * 0.4).toInt()),
+                    width: 1.5,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha((255 * 0.1).toInt()),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: const Icon(
                   Icons.person,
@@ -1316,34 +1365,37 @@ class _FixedMapScreenState extends State<FixedMapScreen>
       children: [
         FloatingActionButton(
           heroTag: 'zoomIn',
+          elevation: 4,
           onPressed: () {
             _animatedMapMove(_mapController.camera.center, _mapController.camera.zoom + 1);
           },
           mini: true,
-          backgroundColor: _primaryColor,
-          foregroundColor: Colors.white,
-          child: const Icon(Icons.add),
+          backgroundColor: Colors.white,
+          foregroundColor: _primaryColor,
+          child: const Icon(Icons.add, size: 20),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         FloatingActionButton(
           heroTag: 'zoomOut',
+          elevation: 4,
           onPressed: () {
             _animatedMapMove(_mapController.camera.center, _mapController.camera.zoom - 1);
           },
           mini: true,
-          backgroundColor: _primaryColor,
-          foregroundColor: Colors.white,
-          child: const Icon(Icons.remove),
+          backgroundColor: Colors.white,
+          foregroundColor: _primaryColor,
+          child: const Icon(Icons.remove, size: 20),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         FloatingActionButton(
           heroTag: 'myLocation',
+          elevation: 6,
           onPressed: () {
             _animatedMapMove(_student.currentLocation, 18.5);
           },
           backgroundColor: _primaryColor,
           foregroundColor: Colors.white,
-          child: const Icon(Icons.my_location),
+          child: const Icon(Icons.my_location, size: 24),
         ),
       ],
     );
@@ -1353,14 +1405,21 @@ class _FixedMapScreenState extends State<FixedMapScreen>
   Widget _buildEnhancedLoadingIndicator() {
     return Center(
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-          color: Colors.white.withAlpha((255 * 0.95).toInt()),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha((255 * 0.1).toInt()),
-              blurRadius: 30,
+              color: _primaryColor.withAlpha((255 * 0.15).toInt()),
+              blurRadius: 32,
+              offset: const Offset(0, 12),
+              spreadRadius: 0,
+            ),
+            BoxShadow(
+              color: Colors.black.withAlpha((255 * 0.08).toInt()),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -1368,26 +1427,32 @@ class _FixedMapScreenState extends State<FixedMapScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               child: CircularProgressIndicator(
                 color: _primaryColor,
-                strokeWidth: 3,
+                strokeWidth: 4,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             const Text(
               "Loading Map...",
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
                 color: _darkTextColor,
+                letterSpacing: 0.3,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               "Please wait while we fetch the latest data",
-              style: TextStyle(fontSize: 12, color: _lightTextColor),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: _lightTextColor,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),

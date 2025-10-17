@@ -14,6 +14,8 @@ class PlannedAbsenceDialog extends StatefulWidget {
 
 class _PlannedAbsenceDialogState extends State<PlannedAbsenceDialog> {
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _selectedStartTime = const TimeOfDay(hour: 9, minute: 0);
+  TimeOfDay _selectedEndTime = const TimeOfDay(hour: 12, minute: 0);
   String? _selectedReason;
   final TextEditingController _customReasonController = TextEditingController();
   bool _isSubmitting = false;
@@ -57,11 +59,24 @@ class _PlannedAbsenceDialogState extends State<PlannedAbsenceDialog> {
     }
   }
 
+  Future<TimeOfDay?> _pickTime(TimeOfDay initial) async {
+    return await showTimePicker(context: context, initialTime: initial);
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) return;
     if (_selectedReason == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a reason'), backgroundColor: _errorColor),
+      );
+      return;
+    }
+    // Validate time range
+    final startMinutes = _selectedStartTime.hour * 60 + _selectedStartTime.minute;
+    final endMinutes = _selectedEndTime.hour * 60 + _selectedEndTime.minute;
+    if (endMinutes <= startMinutes) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('End time must be after start time'), backgroundColor: _errorColor),
       );
       return;
     }
@@ -79,7 +94,10 @@ class _PlannedAbsenceDialogState extends State<PlannedAbsenceDialog> {
     setState(() => _isSubmitting = true);
     if (mounted) {
       Navigator.of(context).pop({
+        // Return date and start/end times so caller can store precise excused datetimes
         'forDate': DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
+        'forStartTime': {'hour': _selectedStartTime.hour, 'minute': _selectedStartTime.minute},
+        'forEndTime': {'hour': _selectedEndTime.hour, 'minute': _selectedEndTime.minute},
         'reason': finalReason,
       });
     }
@@ -130,23 +148,63 @@ class _PlannedAbsenceDialogState extends State<PlannedAbsenceDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Date picker row
+            // Date and time range picker
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [
                 BoxShadow(color: Colors.black.withAlpha((255 * 0.05).toInt()), blurRadius: 10, offset: const Offset(0, 2)),
               ]),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.calendar_today, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      TextButton.icon(onPressed: _isSubmitting ? null : _pickDate, icon: const Icon(Icons.edit_calendar), label: const Text('Change')),
+                    ],
                   ),
-                  TextButton.icon(onPressed: _isSubmitting ? null : _pickDate, icon: const Icon(Icons.edit_calendar), label: const Text('Change')),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () async {
+                                      final picked = await _pickTime(_selectedStartTime);
+                                      if (picked != null) setState(() => _selectedStartTime = picked);
+                                    },
+                              icon: const Icon(Icons.play_arrow, size: 18),
+                              label: Text('From ${_selectedStartTime.format(context)}'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () async {
+                                      final picked = await _pickTime(_selectedEndTime);
+                                      if (picked != null) setState(() => _selectedEndTime = picked);
+                                    },
+                              icon: const Icon(Icons.stop, size: 18),
+                              label: Text('To ${_selectedEndTime.format(context)}'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),

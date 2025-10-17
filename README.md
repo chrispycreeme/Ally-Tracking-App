@@ -187,6 +187,57 @@ buildings/{buildingId} {
 
 ## 📁 Project Structure
 
+### Background Tracking Logic
+
+#### Before Enhancements
+
+```mermaid
+flowchart TD
+    B1[Login stores class hours locally]
+    B2[Background service wakes every minute]
+    B3{Within class hours?}
+    B4[Send location update to Firestore]
+    B1 --> B2 --> B3
+    B3 -- No --> B2
+    B3 -- Yes --> B4 --> B2
+
+    classDef default fill:#f7f9fc,stroke:#6366F1,stroke-width:1px,color:#1E293B;
+    classDef decision fill:#ffffff,stroke:#8B5CF6,stroke-width:2px,color:#1E293B;
+    class B3 decision;
+```
+
+- Single boolean flag in shared preferences dictated whether tracking runs.
+- No awareness of excused windows or pre-approved absences.
+- Background loop always queried GPS if current time sat between raw `classHours` values.
+
+#### After Enhancements
+
+```mermaid
+flowchart TD
+    A1[Login stores class hours and refreshes excuse cache]
+    A2[Service wakes every minute]
+    A3[Resolve excused state (cache + Firestore)]
+    A4{Within class hours?}
+    A5{Excused right now?}
+    A6[Pause tracking and post "Paused" notification]
+    A7[Send location heartbeat and presence ping]
+    A8[Cache next excuse expiry for reuse]
+
+    A1 --> A2 --> A3 --> A4
+    A4 -- No --> A6 --> A2
+    A4 -- Yes --> A5
+    A5 -- Yes --> A6 --> A2
+    A5 -- No --> A7 --> A8 --> A2
+
+    classDef default fill:#f7f9fc,stroke:#6366F1,stroke-width:1px,color:#1E293B;
+    classDef decision fill:#ffffff,stroke:#8B5CF6,stroke-width:2px,color:#1E293B;
+    class A4,A5 decision;
+```
+
+- `_resolveExcuseState` merges planned absences and same-day reasons, caching outcomes for two minutes.
+- Notifications swap between "Active" and "Paused" based on excused coverage and class-hour windows.
+- `updateBackgroundTracking` and `reevaluateBackgroundTracking` now gate service lifecycles on excuse status.
+
 ```
 lib/
 ├── main.dart                           # App entry point & Firebase initialization

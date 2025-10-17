@@ -157,8 +157,10 @@ class MapService {
     String studentId,
     DateTime forDate,
     String reason,
-    DateTime submittedAt,
-  ) async {
+    DateTime submittedAt, {
+    DateTime? forStartTime,
+    DateTime? forEndTime,
+  }) async {
     try {
       if (studentId.trim().isEmpty) throw Exception('Student ID cannot be empty');
       if (reason.trim().isEmpty) throw Exception('Planned absence reason cannot be empty');
@@ -172,6 +174,8 @@ class MapService {
         'forDate': Timestamp.fromDate(DateTime(forDate.year, forDate.month, forDate.day)),
         'reason': reason.trim(),
         'submittedAt': Timestamp.fromDate(submittedAt),
+        if (forStartTime != null) 'forStartDateTime': Timestamp.fromDate(forStartTime),
+        if (forEndTime != null) 'forEndDateTime': Timestamp.fromDate(forEndTime),
       }, SetOptions(merge: true));
     } catch (e) {
       print('❌ addPlannedAbsence error: $e');

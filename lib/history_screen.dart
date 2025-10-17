@@ -116,13 +116,32 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Widget _buildExportFab() {
-    return FloatingActionButton.extended(
-      onPressed: _openExportSheet,
-      backgroundColor: _primaryColor,
-      icon: const Icon(Icons.download_rounded, size: 24),
-      label: const Text(
-        "Export History",
-        style: TextStyle(fontWeight: FontWeight.w600),
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: FloatingActionButton.extended(
+        onPressed: _openExportSheet,
+        backgroundColor: _primaryColor,
+        elevation: 0,
+        icon: const Icon(Icons.download_rounded, size: 22),
+        label: const Text(
+          "Export History",
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, letterSpacing: 0.3),
+        ),
       ),
     );
   }
@@ -313,12 +332,18 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         margin: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: _primaryColor.withOpacity(0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+              spreadRadius: 0,
+            ),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -330,36 +355,56 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: _primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        colors: [_primaryColor, _secondaryColor],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _primaryColor.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: Icon(
+                    child: const Icon(
                       FontAwesomeIcons.users,
                       size: 18,
-                      color: _primaryColor,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 14),
                   const Text(
                     'Select Student',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1E293B),
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
   Container(
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFF8FAFC),
+                  border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
     child: ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 52),
+      constraints: const BoxConstraints(minHeight: 56),
       child: DropdownButtonFormField<String>(
           value: (widget.teacherStudents ?? []).any((s) => s.id == _selectedStudentId)
             ? _selectedStudentId
@@ -369,25 +414,26 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                   isExpanded: true,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                     hintText: 'Choose a student',
+                    hintStyle: TextStyle(fontWeight: FontWeight.w500),
                   ),
                   selectedItemBuilder: (context) => students
                       .map((s) => Row(
                             children: [
                               CircleAvatar(
-                                radius: 14,
-                                backgroundColor: _primaryColor.withOpacity(0.1),
+                                radius: 16,
+                                backgroundColor: _primaryColor.withOpacity(0.15),
                                 child: Text(
                                   s.name.isNotEmpty ? s.name[0].toUpperCase() : 'S',
                                   style: TextStyle(
                                     color: _primaryColor,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
+                              const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
                                   '${s.name}  •  ${s.id}',
@@ -395,7 +441,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.2,
                                   ),
                                 ),
                               ),
@@ -612,18 +659,48 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
   Widget _buildDateHeader(String date) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
-        color: _primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        date,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: _primaryColor,
+        gradient: LinearGradient(
+          colors: [
+            _primaryColor.withOpacity(0.12),
+            _secondaryColor.withOpacity(0.12),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: _primaryColor.withOpacity(0.25),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.calendar_today,
+            size: 16,
+            color: _primaryColor,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            date,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: _primaryColor,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -652,50 +729,71 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     }
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12, left: index.isEven ? 0 : 20, right: index.isOdd ? 0 : 20),
+      margin: EdgeInsets.only(bottom: 14, left: index.isEven ? 0 : 8, right: index.isOdd ? 0 : 8),
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: accentColor.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+            spreadRadius: 0,
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
         border: Border.all(
-          color: accentColor.withOpacity(0.2),
-          width: 1,
+          color: accentColor.withOpacity(0.25),
+          width: 1.5,
         ),
       ),
       child: IntrinsicHeight(
         child: Row(
           children: [
             Container(
-              width: 4,
+              width: 5,
               decoration: BoxDecoration(
-                color: accentColor,
+                gradient: LinearGradient(
+                  colors: [accentColor, accentColor.withOpacity(0.7)],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
                 borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  bottomLeft: Radius.circular(16),
+                  topLeft: Radius.circular(18),
+                  bottomLeft: Radius.circular(18),
                 ),
               ),
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: accentColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        gradient: LinearGradient(
+                          colors: [
+                            accentColor.withOpacity(0.12),
+                            accentColor.withOpacity(0.08),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: accentColor.withOpacity(0.2),
+                          width: 1,
+                        ),
                       ),
                       child: Icon(
                         iconData,
-                        size: 20,
+                        size: 22,
                         color: accentColor,
                       ),
                     ),
@@ -708,19 +806,21 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                             entry.message,
                             style: const TextStyle(
                               fontSize: 15,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               color: Color(0xFF1E293B),
+                              letterSpacing: 0.2,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             softWrap: true,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Text(
                             _formatEntrySubtitle(entry),
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500,
                             ),
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,

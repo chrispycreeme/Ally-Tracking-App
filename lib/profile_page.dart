@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'map_handlers/student_model.dart';
@@ -9,6 +11,7 @@ import 'map_handlers/attendance_service.dart';
 
 // Ensure the AbsenceReasonDialog class is defined in the imported file or define it below if missing.
 import 'login_service.dart';
+import 'background_location_service.dart';
 
 class ProfilePage extends StatefulWidget {
   final Student student;
@@ -381,9 +384,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     value: rt == null
                         ? '--%'
                         : '${rt.percentage.toStringAsFixed(0)}%',
-                    chip: rt == null
-                        ? '—'
-                        : '${rt.presentCount}/${rt.eligibleCount} present',
+          chip: rt == null
+            ? '—'
+            : '${rt.onlineCount} online • ${rt.presentCount}/${rt.eligibleCount} present',
                     color: _primaryColor,
                     onTap: rt == null ? null : () => _showAttendanceDetails(rt, 'Realtime Attendance'),
                   ),
@@ -396,9 +399,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     value: td == null
                         ? '--%'
                         : '${td.percentage.toStringAsFixed(0)}%',
-                    chip: td == null
-                        ? '—'
-                        : '${td.presentCount}/${td.eligibleCount} present',
+          chip: td == null
+            ? '—'
+            : '${td.onlineCount} online • ${td.presentCount}/${td.eligibleCount} present',
                     color: _secondaryColor,
                     onTap: td == null ? null : () => _showAttendanceDetails(td, "Today's Attendance"),
                   ),
@@ -519,7 +522,15 @@ class _ProfilePageState extends State<ProfilePage> {
                               : (d.excused ? Icons.info_rounded : Icons.cancel_rounded),
                           color: d.present ? _successColor : (d.excused ? _warningColor : _errorColor),
                         ),
-                        title: Text('${d.studentId}  •  ${d.name}'),
+                        title: Row(
+                          children: [
+                            Expanded(child: Text('${d.studentId}  •  ${d.name}')),
+                            if (d.online) ...[
+                              const SizedBox(width: 8),
+                              Icon(Icons.circle, size: 10, color: _successColor),
+                            ]
+                          ],
+                        ),
                         subtitle: Text(
                           d.counted
                               ? (d.present
@@ -553,8 +564,18 @@ class _ProfilePageState extends State<ProfilePage> {
       if (result == null) return;
       final forDate = result['forDate'] as DateTime?;
       final reason = result['reason'] as String?;
+      final startMap = result['forStartTime'] as Map<String, dynamic>?;
+      final endMap = result['forEndTime'] as Map<String, dynamic>?;
+      DateTime? startDateTime;
+      DateTime? endDateTime;
+      if (forDate != null && startMap != null && startMap.containsKey('hour') && startMap.containsKey('minute')) {
+        startDateTime = DateTime(forDate.year, forDate.month, forDate.day, (startMap['hour'] as int), (startMap['minute'] as int));
+      }
+      if (forDate != null && endMap != null && endMap.containsKey('hour') && endMap.containsKey('minute')) {
+        endDateTime = DateTime(forDate.year, forDate.month, forDate.day, (endMap['hour'] as int), (endMap['minute'] as int));
+      }
       if (forDate == null || reason == null) return;
-      await _handlePlannedAbsenceSubmission(forDate, reason);
+      await _handlePlannedAbsenceSubmission(forDate, reason, forStartTime: startDateTime, forEndTime: endDateTime);
     });
   }
 
@@ -612,19 +633,28 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Future<void> _handlePlannedAbsenceSubmission(DateTime forDate, String reason) async {
+  Future<void> _handlePlannedAbsenceSubmission(DateTime forDate, String reason, {DateTime? forStartTime, DateTime? forEndTime}) async {
     try {
       if (reason.trim().isEmpty) throw Exception('Reason cannot be empty');
       if (widget.student.id.trim().isEmpty) throw Exception('Student ID is missing');
       setState(() => _isLoading = true);
       final now = DateTime.now();
-      await _mapService.addPlannedAbsence(widget.student.id, forDate, reason, now);
+      // For compatibility we still pass the date; also pass optional start/end datetimes
+      await _mapService.addPlannedAbsence(
+        widget.student.id,
+        forDate,
+        reason,
+        now,
+        forStartTime: forStartTime,
+        forEndTime: forEndTime,
+      );
+      unawaited(reevaluateBackgroundTracking());
       // Log to history for visibility
       try {
         await HistoryService().addAbsenceReason(
           studentId: widget.student.id,
           timestamp: now,
-          reason: 'Planned for ${forDate.year}-${forDate.month.toString().padLeft(2, '0')}-${forDate.day.toString().padLeft(2, '0')}: $reason',
+          reason: 'Planned for ${forDate.year}-${forDate.month.toString().padLeft(2, '0')}-${forDate.day.toString().padLeft(2, '0')}${forStartTime != null ? ' ${forStartTime.hour.toString().padLeft(2, '0')}:${forStartTime.minute.toString().padLeft(2, '0')}' : ''}${forEndTime != null ? ' - ${forEndTime.hour.toString().padLeft(2, '0')}:${forEndTime.minute.toString().padLeft(2, '0')}' : ''}: $reason',
         );
       } catch (_) {}
       if (mounted) {
@@ -648,27 +678,28 @@ class _ProfilePageState extends State<ProfilePage> {
     final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
     
     return Container(
-      padding: EdgeInsets.all(isSmallScreen ? 20 : 32),
+      padding: EdgeInsets.all(isSmallScreen ? 22 : 32),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             Colors.white,
-            Colors.white.withAlpha((255 * 0.95).toInt()),
+            Colors.white.withAlpha((255 * 0.97).toInt()),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: _primaryColor.withAlpha((255 * 0.08).toInt()),
-            blurRadius: 30,
-            offset: const Offset(0, 15),
+            color: _primaryColor.withAlpha((255 * 0.12).toInt()),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+            spreadRadius: 0,
           ),
           BoxShadow(
-            color: _secondaryColor.withAlpha((255 * 0.05).toInt()),
-            blurRadius: 60,
-            offset: const Offset(0, 30),
+            color: Colors.black.withAlpha((255 * 0.05).toInt()),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -680,8 +711,8 @@ class _ProfilePageState extends State<ProfilePage> {
             children: [
               // Animated ring
               Container(
-                width: isSmallScreen ? 110 : 140,
-                height: isSmallScreen ? 110 : 140,
+                width: isSmallScreen ? 116 : 144,
+                height: isSmallScreen ? 116 : 144,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -689,15 +720,29 @@ class _ProfilePageState extends State<ProfilePage> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primaryColor.withAlpha((255 * 0.3).toInt()),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
               ),
               // Profile image container
               Container(
-                width: isSmallScreen ? 100 : 128,
-                height: isSmallScreen ? 100 : 128,
-                decoration: const BoxDecoration(
+                width: isSmallScreen ? 104 : 132,
+                height: isSmallScreen ? 104 : 132,
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha((255 * 0.1).toInt()),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: ClipOval(
                   child: _isLoading
@@ -728,8 +773,8 @@ class _ProfilePageState extends State<ProfilePage> {
               // Camera button
               if (!_isLoading)
                 Positioned(
-                  bottom: 8,
-                  right: 8,
+                  bottom: 4,
+                  right: 4,
                   child: GestureDetector(
                     onTap: _pickAndUploadImage,
                     child: Container(
@@ -743,9 +788,10 @@ class _ProfilePageState extends State<ProfilePage> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: _primaryColor.withAlpha((255 * 0.4).toInt()),
-                            blurRadius: 15,
-                            offset: const Offset(0, 8),
+                            color: _primaryColor.withAlpha((255 * 0.5).toInt()),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                            spreadRadius: 0,
                           ),
                         ],
                       ),
@@ -759,56 +805,66 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
             ],
           ),
-          SizedBox(height: isSmallScreen ? 16 : 24),
+          SizedBox(height: isSmallScreen ? 18 : 24),
           
           // Name and Role
           Text(
             widget.student.name,
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: isSmallScreen ? 20 : 24,
-              fontWeight: FontWeight.bold,
+              fontSize: isSmallScreen ? 22 : 26,
+              fontWeight: FontWeight.w800,
               color: _darkTextColor,
               fontFamily: 'Inter',
+              letterSpacing: 0.3,
             ),
           ),
-          SizedBox(height: isSmallScreen ? 6 : 8),
+          SizedBox(height: isSmallScreen ? 8 : 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  _primaryColor.withAlpha((255 * 0.1).toInt()),
-                  _secondaryColor.withAlpha((255 * 0.1).toInt()),
+                  _primaryColor.withAlpha((255 * 0.12).toInt()),
+                  _secondaryColor.withAlpha((255 * 0.12).toInt()),
                 ],
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: _primaryColor.withAlpha((255 * 0.2).toInt()),
-                width: 1,
+                color: _primaryColor.withAlpha((255 * 0.3).toInt()),
+                width: 1.5,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: _primaryColor.withAlpha((255 * 0.1).toInt()),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   widget.student.isTeacher ? Icons.school : Icons.person,
-                  size: 16,
+                  size: 18,
                   color: _primaryColor,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Text(
                   widget.student.isTeacher ? 'Teacher' : 'Student',
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: _primaryColor,
                     fontFamily: 'Inter',
+                    letterSpacing: 0.3,
                   ),
                 ),
               ],
             ),
           ),
-          SizedBox(height: isSmallScreen ? 8 : 12),
+          SizedBox(height: isSmallScreen ? 10 : 14),
           Text(
             'Tap the camera icon to update your profile picture',
             textAlign: TextAlign.center,
@@ -816,6 +872,7 @@ class _ProfilePageState extends State<ProfilePage> {
               color: _lightTextColor,
               fontSize: 12,
               fontFamily: 'Inter',
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -828,7 +885,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final isSmallScreen = screenSize.height < 700 || screenSize.width < 400;
     
     return Container(
-      padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
+      padding: EdgeInsets.all(isSmallScreen ? 18 : 24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -838,17 +895,18 @@ class _ProfilePageState extends State<ProfilePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _primaryColor.withAlpha((255 * 0.06).toInt()),
-            blurRadius: 25,
-            offset: const Offset(0, 12),
+            color: _primaryColor.withAlpha((255 * 0.08).toInt()),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+            spreadRadius: 0,
           ),
           BoxShadow(
-            color: _accentColor.withAlpha((255 * 0.03).toInt()),
-            blurRadius: 50,
-            offset: const Offset(0, 25),
+            color: Colors.black.withAlpha((255 * 0.04).toInt()),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -865,12 +923,19 @@ class _ProfilePageState extends State<ProfilePage> {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _primaryColor.withAlpha((255 * 0.3).toInt()),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: const Icon(
                   Icons.person_outline,
                   color: Colors.white,
-                  size: 20,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: 16),

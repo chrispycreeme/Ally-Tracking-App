@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'history_entry.dart';
 import 'student_model.dart';
+import 'presence_service.dart';
 
 class StudentAttendanceDetail {
   final String studentId;
@@ -11,6 +12,7 @@ class StudentAttendanceDetail {
   final bool counted; // whether included in denominator
   final bool present;
   final bool excused;
+  final bool online;
   final String? absenceReason;
   final int? presentDurationMinutes; // for daily computations (best-effort)
 
@@ -20,6 +22,7 @@ class StudentAttendanceDetail {
     required this.counted,
     required this.present,
     required this.excused,
+    this.online = false,
     this.absenceReason,
     this.presentDurationMinutes,
   });
@@ -30,6 +33,7 @@ class AttendanceSummary {
   final int totalAssigned; // all assigned students
   final int eligibleCount; // denominator (e.g., during class hours)
   final int presentCount; // counted and present
+  final int onlineCount; // how many are currently online (logged in)
   final int excusedCount; // counted and absent with excused reason
   final double percentage; // presentCount / eligibleCount * 100
   final List<StudentAttendanceDetail> details;
@@ -39,6 +43,7 @@ class AttendanceSummary {
     required this.totalAssigned,
     required this.eligibleCount,
     required this.presentCount,
+    required this.onlineCount,
     required this.excusedCount,
     required this.percentage,
     required this.details,
@@ -52,8 +57,18 @@ class AttendanceSummary {
 /// - students/{studentId}/history (status_change entries with 'status')
 class AttendanceService {
   final FirebaseFirestore _firestore;
+  final PresenceService _presenceService;
   AttendanceService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? FirebaseFirestore.instance,
+        _presenceService = PresenceService(firestore: firestore ?? FirebaseFirestore.instance);
+
+  AttendanceService._withPresence(FirebaseFirestore? firestore, PresenceService? presence)
+      : _firestore = firestore ?? FirebaseFirestore.instance,
+        _presenceService = presence ?? PresenceService(firestore: firestore ?? FirebaseFirestore.instance);
+
+  factory AttendanceService.withDependencies({FirebaseFirestore? firestore, PresenceService? presence}) {
+    return AttendanceService._withPresence(firestore, presence);
+  }
 
   Future<List<String>> _fetchAssignedStudentIds(String teacherId) async {
     final snap =
@@ -102,11 +117,15 @@ class AttendanceService {
     int excused = 0;
     final List<StudentAttendanceDetail> details = [];
 
+    int onlineCount = 0;
     for (final s in students) {
       final duringClass = s.isDuringClassHours;
       final counted = countOnlyDuringClassHours ? duringClass : true;
       final isPresent = s.status == LocationStatus.insideSchool &&
           (!countOnlyDuringClassHours || duringClass);
+
+      final isCurrentlyOnline = await _isCurrentlyOnline(s.id, fallback: s.isOnline);
+      if (isCurrentlyOnline) onlineCount += 1;
 
       bool isExcused = false;
       if (!isPresent && counted) {
@@ -130,6 +149,7 @@ class AttendanceService {
         counted: counted,
         present: isPresent,
         excused: isExcused,
+        online: isCurrentlyOnline,
         absenceReason: s.absenceReason,
       ));
     }
@@ -140,6 +160,7 @@ class AttendanceService {
       totalAssigned: students.length,
       eligibleCount: eligible,
       presentCount: present,
+      onlineCount: onlineCount,
       excusedCount: excused,
       percentage: pct,
       details: details,
@@ -196,8 +217,9 @@ class AttendanceService {
       eligible += 1;
       final timeline = await _fetchStatusTimeline(s.id, start, end);
       final insideMinutes = _computeInsideMinutes(timeline, start, end);
-    final isPresent = insideMinutes >= requireMinimumMinutesInside &&
-      (!requireOnlineForPresent || s.isOnline);
+      final isOnlineNow = await _isCurrentlyOnline(s.id, fallback: s.isOnline);
+      final isPresent = insideMinutes >= requireMinimumMinutesInside &&
+        (!requireOnlineForPresent || isOnlineNow);
 
       bool isExcused = false;
       if (!isPresent) {
@@ -217,6 +239,7 @@ class AttendanceService {
         counted: true,
         present: isPresent,
         excused: isExcused,
+        online: isOnlineNow,
         absenceReason: s.absenceReason,
         presentDurationMinutes: insideMinutes,
       ));
@@ -228,10 +251,30 @@ class AttendanceService {
       totalAssigned: students.length,
       eligibleCount: eligible,
       presentCount: present,
+      onlineCount: details.where((d) => d.online).length,
       excusedCount: excused,
       percentage: pct,
       details: details,
     );
+  }
+
+  /// Returns true if the student's presence doc indicates they're online within a short window.
+  Future<bool> _isCurrentlyOnline(String studentId, {required bool fallback}) async {
+    try {
+      final pres = await _presenceService.readPresence(studentId);
+      if (pres == null || !pres.exists) return fallback;
+      final data = pres.data();
+      if (data == null) return fallback;
+      final ts = data['lastSeen'];
+      final onlineFlag = data['isOnline'] == true;
+      if (ts is Timestamp) {
+        final diff = DateTime.now().difference(ts.toDate()).inSeconds;
+        return onlineFlag && diff <= 90;
+      }
+      return onlineFlag;
+    } catch (_) {
+      return fallback;
+    }
   }
 
   // Build a status timeline between [start, end], including one entry

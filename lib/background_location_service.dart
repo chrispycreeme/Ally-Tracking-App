@@ -7,12 +7,16 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'map_handlers/presence_service.dart';
 
 /// Keys for prefs to communicate between UI isolate and service isolate
 class BgKeys {
   static const String studentId = 'bg_student_id';
   static const String classHours = 'bg_class_hours';
   static const String enabled = 'bg_enabled';
+  static const String cachedExcuseStatus = 'bg_excuse_cached_status';
+  static const String cachedExcuseExpiry = 'bg_excuse_cached_expiry';
+  static const String cachedExcuseReason = 'bg_excuse_cached_reason';
 }
 
 /// Initializes the background service. Call once during app start (after Firebase).
@@ -80,25 +84,34 @@ Future<void> backgroundServiceEntry(ServiceInstance service) async {
   // Periodic timer (adjust interval for battery/performance balance)
   Timer.periodic(const Duration(minutes: 1), (timer) async {
     try {
-      final enabled = prefs.getBool(BgKeys.enabled) ?? false;
-      if (!enabled) {
-        // Periodically keep idle notification fresh (every ~15 mins implicitly by minute loop)
-        if (service is AndroidServiceInstance && timer.tick % 15 == 0) {
-          service.setForegroundNotificationInfo(
-            title: 'Ally Tracking Idle',
-            content: 'Outside class hours',
-          );
-        }
-        return; // Skip if outside class hours
-      }
-
       final studentId = prefs.getString(BgKeys.studentId);
       final classHours = prefs.getString(BgKeys.classHours) ?? '';
       if (studentId == null || studentId.isEmpty) return;
 
-      // Double-check still within class hour window
-      if (!_isNowWithinClassHours(classHours)) {
-        prefs.setBool(BgKeys.enabled, false);
+      final now = DateTime.now();
+      final withinClassHours = _isNowWithinClassHours(classHours);
+      final excuseState = await _resolveExcuseState(
+        firestore: firestore,
+        prefs: prefs,
+        studentId: studentId,
+      );
+      final shouldTrack = withinClassHours && !excuseState.isExcused;
+      final previouslyEnabled = prefs.getBool(BgKeys.enabled) ?? false;
+
+      if (previouslyEnabled != shouldTrack) {
+        await prefs.setBool(BgKeys.enabled, shouldTrack);
+      }
+
+      if (!shouldTrack) {
+        if (service is AndroidServiceInstance) {
+          final pausedMessage = withinClassHours
+              ? 'Monitoring paused: ${excuseState.reasonLabel ?? 'Excused'}'
+              : 'Outside class hours';
+          service.setForegroundNotificationInfo(
+            title: 'Ally Tracking Paused',
+            content: pausedMessage,
+          );
+        }
         return;
       }
 
@@ -114,12 +127,18 @@ Future<void> backgroundServiceEntry(ServiceInstance service) async {
       );
 
       final geoPoint = GeoPoint(pos.latitude, pos.longitude);
-      final now = DateTime.now();
-
       await firestore.collection('students').doc(studentId).update({
         'currentLocation': geoPoint,
         'lastUpdated': Timestamp.fromDate(now),
       });
+
+      // Also send an explicit presence heartbeat (best-effort). This helps
+      // teachers get a very recent 'online' indicator even if lastUpdated
+      // is delayed by client clock or network.
+      try {
+        final presence = PresenceService(firestore: firestore);
+        await presence.heartbeat(studentId, isOnline: true);
+      } catch (_) {}
 
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
@@ -139,12 +158,20 @@ Future<void> updateBackgroundTracking({required String studentId, required Strin
   await prefs.setString(BgKeys.studentId, studentId);
   await prefs.setString(BgKeys.classHours, classHours);
 
-      final within = _isNowWithinClassHours(classHours);
-  await prefs.setBool(BgKeys.enabled, within);
+  final firestore = FirebaseFirestore.instance;
+  final excuseState = await _resolveExcuseState(
+    firestore: firestore,
+    prefs: prefs,
+    studentId: studentId,
+    forceRefresh: true,
+  );
+  final within = _isNowWithinClassHours(classHours);
+  final shouldTrack = within && !excuseState.isExcused;
+  await prefs.setBool(BgKeys.enabled, shouldTrack);
 
   final service = FlutterBackgroundService();
   final running = await service.isRunning();
-  if (within) {
+  if (shouldTrack) {
     if (!running) {
       await service.startService();
       // Give service a moment then refresh notification
@@ -164,7 +191,17 @@ Future<void> updateBackgroundTracking({required String studentId, required Strin
 Future<void> reevaluateBackgroundTracking() async {
   final prefs = await SharedPreferences.getInstance();
   final classHours = prefs.getString(BgKeys.classHours) ?? '';
-  final shouldEnable = _isNowWithinClassHours(classHours);
+  final studentId = prefs.getString(BgKeys.studentId);
+  if (studentId == null || studentId.isEmpty) return;
+
+  final firestore = FirebaseFirestore.instance;
+  final excuseState = await _resolveExcuseState(
+    firestore: firestore,
+    prefs: prefs,
+    studentId: studentId,
+    forceRefresh: true,
+  );
+  final shouldEnable = _isNowWithinClassHours(classHours) && !excuseState.isExcused;
   final wasEnabled = prefs.getBool(BgKeys.enabled) ?? false;
 
   if (shouldEnable == wasEnabled) return; // No change
@@ -220,3 +257,165 @@ _TimeOfDay _parseTime(String raw) {
 }
 
 class _TimeOfDay { final int hour; final int minute; const _TimeOfDay(this.hour,this.minute); }
+
+class _ExcuseState {
+  final bool isExcused;
+  final DateTime? validUntil;
+  final String? reasonLabel;
+
+  const _ExcuseState({required this.isExcused, this.validUntil, this.reasonLabel});
+}
+
+Future<_ExcuseState> _resolveExcuseState({
+  required FirebaseFirestore firestore,
+  required SharedPreferences prefs,
+  required String studentId,
+  bool forceRefresh = false,
+  Duration fallbackCacheDuration = const Duration(minutes: 2),
+}) async {
+  final now = DateTime.now();
+  if (!forceRefresh) {
+    final cachedStatus = prefs.getBool(BgKeys.cachedExcuseStatus);
+    final cachedExpiryMs = prefs.getInt(BgKeys.cachedExcuseExpiry);
+    final cachedReason = prefs.getString(BgKeys.cachedExcuseReason);
+    if (cachedStatus != null && cachedExpiryMs != null) {
+      final expiry = DateTime.fromMillisecondsSinceEpoch(cachedExpiryMs);
+      if (now.isBefore(expiry)) {
+        return _ExcuseState(
+          isExcused: cachedStatus,
+          validUntil: expiry,
+          reasonLabel: cachedReason,
+        );
+      }
+    }
+  }
+
+  final fresh = await _fetchExcuseState(firestore: firestore, studentId: studentId);
+  final expiry = fresh.validUntil ?? now.add(fallbackCacheDuration);
+
+  await prefs.setBool(BgKeys.cachedExcuseStatus, fresh.isExcused);
+  await prefs.setInt(BgKeys.cachedExcuseExpiry, expiry.millisecondsSinceEpoch);
+  if (fresh.reasonLabel != null && fresh.reasonLabel!.isNotEmpty) {
+    await prefs.setString(BgKeys.cachedExcuseReason, fresh.reasonLabel!);
+  } else {
+    await prefs.remove(BgKeys.cachedExcuseReason);
+  }
+
+  return fresh;
+}
+
+Future<_ExcuseState> _fetchExcuseState({
+  required FirebaseFirestore firestore,
+  required String studentId,
+}) async {
+  final now = DateTime.now();
+  try {
+    final studentDocRef = firestore.collection('students').doc(studentId);
+    final todayKey = _dateKey(now);
+    final plannedAbsenceRef = studentDocRef.collection('plannedAbsences').doc(todayKey);
+
+    final snapshots = await Future.wait<DocumentSnapshot<Map<String, dynamic>>>([
+      plannedAbsenceRef.get(),
+      studentDocRef.get(),
+    ]);
+
+    final plannedDoc = snapshots[0];
+    final studentDoc = snapshots[1];
+
+    bool isExcused = false;
+    DateTime? validUntil;
+    String? reasonLabel;
+
+    if (plannedDoc.exists) {
+      final data = plannedDoc.data();
+      if (data != null) {
+        DateTime start = _timestampToDateTime(data['forStartDateTime']) ??
+            DateTime(now.year, now.month, now.day, 0, 0);
+        DateTime end = _timestampToDateTime(data['forEndDateTime']) ??
+            DateTime(now.year, now.month, now.day, 23, 59, 59);
+        if (end.isBefore(start)) {
+          end = start.add(const Duration(minutes: 1));
+        }
+
+        if (now.isBefore(start)) {
+          validUntil = start;
+        } else if (!now.isAfter(end)) {
+          isExcused = true;
+          validUntil = end;
+          final reason = data['reason'] as String?;
+          if (reason != null && reason.isNotEmpty) {
+            reasonLabel = reason;
+          }
+        }
+      }
+    }
+
+    if (!isExcused && studentDoc.exists) {
+      final data = studentDoc.data();
+      if (data != null) {
+        final Timestamp? submittedTs = data['absenceReasonSubmittedAt'] as Timestamp?;
+        final String? reason = data['absenceReason'] as String?;
+        if (submittedTs != null && reason != null && reason.isNotEmpty) {
+          final submittedAt = submittedTs.toDate();
+          if (_isSameDay(submittedAt, now) && _reasonIndicatesExcuse(reason)) {
+            isExcused = true;
+            reasonLabel ??= reason;
+            validUntil ??= DateTime(now.year, now.month, now.day, 23, 59, 59);
+          }
+        }
+      }
+    }
+
+    return _ExcuseState(
+      isExcused: isExcused,
+      validUntil: validUntil,
+      reasonLabel: reasonLabel,
+    );
+  } catch (_) {
+    return const _ExcuseState(isExcused: false);
+  }
+}
+
+String _dateKey(DateTime d) {
+  final y = d.year.toString().padLeft(4, '0');
+  final m = d.month.toString().padLeft(2, '0');
+  final da = d.day.toString().padLeft(2, '0');
+  return '$y$m$da';
+}
+
+DateTime? _timestampToDateTime(dynamic value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  return null;
+}
+
+bool _isSameDay(DateTime a, DateTime b) {
+  return a.year == b.year && a.month == b.month && a.day == b.day;
+}
+
+bool _reasonIndicatesExcuse(String raw) {
+  final reason = raw.toLowerCase();
+  const keywords = [
+    'excuse',
+    'excused',
+    'medical',
+    'doctor',
+    'clinic',
+    'hospital',
+    'appointment',
+    'sick',
+    'ill',
+    'family',
+    'school activity',
+    'off-campus',
+    'competition',
+    'tournament',
+    'practice',
+  ];
+  for (final keyword in keywords) {
+    if (reason.contains(keyword)) {
+      return true;
+    }
+  }
+  return false;
+}
