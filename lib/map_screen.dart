@@ -24,6 +24,8 @@ import 'background_location_service.dart';
 import 'map_handlers/building_model.dart';
 import 'offline_location_queue.dart';
 import 'map_handlers/attendance_service.dart';
+import 'ui_theme.dart';
+import 'map_screen_widgets.dart';
 
 /// Main StatefulWidget for the map screen.
 class FixedMapScreen extends StatefulWidget {
@@ -106,15 +108,16 @@ class _FixedMapScreenState extends State<FixedMapScreen>
   late Animation<Offset> _slideAnimation;
 
   // Enhanced color palette
-  static const Color _primaryColor = Color(0xFF6366F1);
-  static const Color _secondaryColor = Color(0xFF8B5CF6);
-  static const Color _accentColor = Color(0xFF06B6D4);
-  static const Color _surfaceColor = Color(0xFFF8FAFC);
-  static const Color _darkTextColor = Color(0xFF1E293B);
-  static const Color _lightTextColor = Color(0xFF64748B);
-  static const Color _successColor = Color(0xFF10B981);
-  static const Color _warningColor = Color(0xFFF59E0B);
-  static const Color _errorColor = Color(0xFFEF4444);
+  static const Color _primaryColor = AllyTheme.primaryColor;
+  static const Color _secondaryColor = AllyTheme.secondaryColor;
+  static const Color _accentColor = AllyTheme.accentColor;
+  static const Color _surfaceColor = AllyTheme.surfaceColor;
+  static const Color _darkTextColor = AllyTheme.darkTextColor;
+  static const Color _lightTextColor = AllyTheme.lightTextColor;
+  static const Color _successColor = AllyTheme.successColor;
+  static const Color _warningColor = AllyTheme.warningColor;
+  static const Color _errorColor = AllyTheme.errorColor;
+  static const String _afterHoursActivityMessage = 'Tracking paused after school hours.';
 
   // Connectivity subscription (v6 of connectivity_plus emits List<ConnectivityResult>)
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
@@ -212,6 +215,9 @@ class _FixedMapScreenState extends State<FixedMapScreen>
     required DateTime lastUpdated,
     String? currentBuilding,
   }) async {
+    if (!_student.isDuringClassHours) {
+      return;
+    }
     try {
       await _mapService.updateStudentLocation(
         studentId,
@@ -510,48 +516,52 @@ class _FixedMapScreenState extends State<FixedMapScreen>
           initialPosition.longitude,
         );
         final initialStatus = _schoolBoundary.checkLocationStatus(initialLocation);
-        String activityMessage = initialStatus == LocationStatus.insideSchool
+        final bool trackingActive = _student.isDuringClassHours;
+        final DateTime now = DateTime.now();
+        final String activityMessage = initialStatus == LocationStatus.insideSchool
             ? "Student is currently inside school."
             : "Student is currently outside school.";
-
-        setState(() {
-          _student = _student.copyWith(
-            currentLocation: initialLocation,
-            status: initialStatus,
-            recentActivity: activityMessage,
-            lastUpdated: DateTime.now(),
-          );
-          _selectedStudent = _student; // Ensure selected student is updated
-        });
-
-        // Update Firestore with initial location data
-        await _mapService.updateStudentLocation(
-          _student.id,
-          _student.currentLocation,
-          _student.status,
-          _student.recentActivity,
-          _student.lastUpdated,
-        ); // initial attempt (kept synchronous during initial load)
-
-        // Show initial status notification
-        await NotificationService().showGeofenceNotification(
-          entered: initialStatus == LocationStatus.insideSchool,
-          studentName: _student.name,
+        final Student updatedStudent = _student.copyWith(
+          currentLocation: initialLocation,
+          status: trackingActive ? initialStatus : LocationStatus.unknown,
+          recentActivity: trackingActive ? activityMessage : _afterHoursActivityMessage,
+          lastUpdated: now,
+          currentBuilding: trackingActive ? _student.currentBuilding : null,
         );
 
-        // Log initial status into history (best-effort)
-        try {
-          await _historyService.addStatusChange(
-            studentId: _student.id,
-            timestamp: DateTime.now(),
-            statusDisplay: _student.statusDisplay,
-            location: _student.currentLocation,
-            placeName: _currentPlaceName,
-          );
-        } catch (_) {}
+        setState(() {
+          _student = updatedStudent;
+          _selectedStudent = updatedStudent;
+        });
 
-        // Check if we need to ask for absence reason on initial load
-        await _checkAndPromptForAbsenceReason(initialStatus);
+        if (trackingActive) {
+          await _mapService.updateStudentLocation(
+            updatedStudent.id,
+            updatedStudent.currentLocation,
+            updatedStudent.status,
+            updatedStudent.recentActivity,
+            updatedStudent.lastUpdated,
+          );
+
+          await NotificationService().showGeofenceNotification(
+            entered: initialStatus == LocationStatus.insideSchool,
+            studentName: updatedStudent.name,
+          );
+
+          try {
+            await _historyService.addStatusChange(
+              studentId: updatedStudent.id,
+              timestamp: now,
+              statusDisplay: updatedStudent.statusDisplay,
+              location: updatedStudent.currentLocation,
+              placeName: _currentPlaceName,
+            );
+          } catch (_) {}
+
+          await _checkAndPromptForAbsenceReason(initialStatus);
+        } else {
+          _hasAskedForReasonToday = false;
+        }
 
         await _reverseGeocodeLocation(initialLocation);
       }
@@ -574,11 +584,33 @@ class _FixedMapScreenState extends State<FixedMapScreen>
           Geolocator.getPositionStream(
             locationSettings: streamLocSettings,
           ).listen(
-            (Position position) async { // Make the listener async
+            (Position position) async {
               try {
                 if (!mounted) return;
-                final newLocation = LatLng(position.latitude, position.longitude);
-                final newStatus = _schoolBoundary.checkLocationStatus(newLocation);
+                final DateTime now = DateTime.now();
+                final LatLng newLocation = LatLng(position.latitude, position.longitude);
+                final bool trackingActive = _student.isDuringClassHours;
+
+                if (!trackingActive) {
+                  final Student pausedStudent = _student.copyWith(
+                    currentLocation: newLocation,
+                    lastUpdated: now,
+                    status: LocationStatus.unknown,
+                    recentActivity: _afterHoursActivityMessage,
+                    currentBuilding: null,
+                  );
+                  setState(() {
+                    _student = pausedStudent;
+                    if (_selectedStudent.id == pausedStudent.id) {
+                      _selectedStudent = pausedStudent;
+                    }
+                  });
+                  _hasAskedForReasonToday = false;
+                  _reverseGeocodeLocation(newLocation);
+                  return;
+                }
+
+                final LocationStatus newStatus = _schoolBoundary.checkLocationStatus(newLocation);
                 final bool statusHasChanged = _student.status != newStatus;
                 String newActivity = _student.recentActivity;
                 if (statusHasChanged) {
@@ -592,47 +624,44 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                   currentBuilding = _mapService.buildingContainingPoint(newLocation, _buildings);
                 }
 
+                final Student updatedStudent = _student.copyWith(
+                  currentLocation: newLocation,
+                  lastUpdated: now,
+                  status: newStatus,
+                  recentActivity: newActivity,
+                  currentBuilding: currentBuilding,
+                );
+
                 setState(() {
-                  _student = _student.copyWith(
-                    currentLocation: newLocation,
-                    lastUpdated: DateTime.now(),
-                    status: newStatus,
-                    recentActivity: newActivity,
-                    currentBuilding: currentBuilding,
-                  );
-                  // If the currently selected student is the user, update their info
-                  if (_selectedStudent.id == _student.id) {
-                    _selectedStudent = _student;
+                  _student = updatedStudent;
+                  if (_selectedStudent.id == updatedStudent.id) {
+                    _selectedStudent = updatedStudent;
                   }
                 });
 
-                // Check if we need to ask for absence reason
                 await _checkAndPromptForAbsenceReason(newStatus);
 
-                // Update Firestore with new location data
                 await _queueOrSendLocationUpdate(
-                  studentId: _student.id,
-                  location: _student.currentLocation,
-                  status: _student.status,
-                  recentActivity: _student.recentActivity,
-                  lastUpdated: _student.lastUpdated,
-                  currentBuilding: _student.currentBuilding,
+                  studentId: updatedStudent.id,
+                  location: updatedStudent.currentLocation,
+                  status: updatedStudent.status,
+                  recentActivity: updatedStudent.recentActivity,
+                  lastUpdated: updatedStudent.lastUpdated,
+                  currentBuilding: updatedStudent.currentBuilding,
                 );
 
-                // Trigger notification on status change
                 if (statusHasChanged) {
                   await NotificationService().showGeofenceNotification(
                     entered: newStatus == LocationStatus.insideSchool,
-                    studentName: _student.name,
+                    studentName: updatedStudent.name,
                   );
 
-                  // Log status change in history (best-effort)
                   try {
                     await _historyService.addStatusChange(
-                      studentId: _student.id,
-                      timestamp: DateTime.now(),
-                      statusDisplay: _student.statusDisplay,
-                      location: _student.currentLocation,
+                      studentId: updatedStudent.id,
+                      timestamp: now,
+                      statusDisplay: updatedStudent.statusDisplay,
+                      location: updatedStudent.currentLocation,
                       placeName: _currentPlaceName,
                     );
                   } catch (_) {}
@@ -1484,25 +1513,25 @@ class _FixedMapScreenState extends State<FixedMapScreen>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                const _EnhancedNavItem(
+                const EnhancedNavItem(
                   icon: FontAwesomeIcons.house,
                   label: "Home",
                   isActive: true,
                 ),
-                _EnhancedNavItem(
+                EnhancedNavItem(
                   icon: FontAwesomeIcons.clockRotateLeft,
                   label: "History",
                   isActive: false,
                   onTap: _showHistory,
                 ),
                 if (_student.isTeacher)
-                  _EnhancedNavItem(
+                  EnhancedNavItem(
                     icon: FontAwesomeIcons.users,
                     label: "Students",
                     isActive: false,
                     onTap: _showStudentsListSheet,
                   ),
-                _EnhancedNavItem(
+                EnhancedNavItem(
                   icon: FontAwesomeIcons.solidUser,
                   label: "Profile",
                   isActive: false,
@@ -2283,75 +2312,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
   }
 }
 
-class _EnhancedNavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback? onTap;
-
-  const _EnhancedNavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    this.onTap,
-  });
-
-  static const Color _primaryColor = Color(0xFF6366F1);
-  static const Color _lightTextColor = Color(0xFF64748B);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-  onTap: onTap ?? () { print('Tapped: $label'); },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive
-              ? _primaryColor.withAlpha((255 * 0.1).toInt())
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: isActive ? _primaryColor : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: isActive
-                    ? [
-                        BoxShadow(
-                          color: _primaryColor.withAlpha((255 * 0.3).toInt()),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Icon(
-                icon,
-                color: isActive ? Colors.white : _lightTextColor,
-                size: 20,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? _primaryColor : _lightTextColor,
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class LatLngTween extends Tween<LatLng> {
   LatLngTween({required super.begin, required super.end});

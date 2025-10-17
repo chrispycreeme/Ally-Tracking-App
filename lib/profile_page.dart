@@ -12,6 +12,7 @@ import 'map_handlers/attendance_service.dart';
 // Ensure the AbsenceReasonDialog class is defined in the imported file or define it below if missing.
 import 'login_service.dart';
 import 'background_location_service.dart';
+import 'ui_theme.dart';
 
 class ProfilePage extends StatefulWidget {
   final Student student;
@@ -47,15 +48,15 @@ class _ProfilePageState extends State<ProfilePage> {
   DateTime? _lastAttendanceRefresh;
   
   // Enhanced color palette matching the main app
-  static const Color _primaryColor = Color(0xFF6366F1);
-  static const Color _secondaryColor = Color(0xFF8B5CF6);
-  static const Color _accentColor = Color(0xFF06B6D4);
-  static const Color _surfaceColor = Color(0xFFF8FAFC);
-  static const Color _darkTextColor = Color(0xFF1E293B);
-  static const Color _lightTextColor = Color(0xFF64748B);
-  static const Color _successColor = Color(0xFF10B981);
-  static const Color _errorColor = Color(0xFFEF4444);
-  static const Color _warningColor = Color(0xFFF59E0B);
+  static const Color _primaryColor = AllyTheme.primaryColor;
+  static const Color _secondaryColor = AllyTheme.secondaryColor;
+  static const Color _accentColor = AllyTheme.accentColor;
+  static const Color _surfaceColor = AllyTheme.surfaceColor;
+  static const Color _darkTextColor = AllyTheme.darkTextColor;
+  static const Color _lightTextColor = AllyTheme.lightTextColor;
+  static const Color _successColor = AllyTheme.successColor;
+  static const Color _errorColor = AllyTheme.errorColor;
+  static const Color _warningColor = AllyTheme.warningColor;
 
   @override
   void initState() {

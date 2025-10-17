@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'map_handlers/history_entry.dart';
 import 'map_handlers/history_service.dart';
 import 'map_handlers/student_model.dart';
+import 'ui_theme.dart';
 
 class HistoryScreen extends StatefulWidget {
   final Student viewer; // the logged-in user (student or teacher)
@@ -26,10 +27,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   late Animation<double> _fadeAnimation;
 
   // Enhanced color palette matching the main app
-  static const Color _primaryColor = Color(0xFF6366F1);
-  static const Color _secondaryColor = Color(0xFF8B5CF6);
-  static const Color _successColor = Color(0xFF10B981);
-  static const Color _warningColor = Color(0xFFF59E0B);
+  static const Color _primaryColor = AllyTheme.primaryColor;
+  static const Color _secondaryColor = AllyTheme.secondaryColor;
+  static const Color _successColor = AllyTheme.successColor;
+  static const Color _warningColor = AllyTheme.warningColor;
 
   @override
   void initState() {

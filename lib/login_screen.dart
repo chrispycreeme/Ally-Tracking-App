@@ -7,6 +7,7 @@ import 'login_service.dart';
 import 'map_handlers/student_model.dart';
 import 'map_screen.dart';
 import 'background_location_service.dart';
+import 'ui_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -162,8 +163,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFF894DFF);
-    const Color gradientEndColor = Color(0xFFAB8AED);
+    final primaryColor = AllyTheme.primaryColor;
 
     final screenSize = MediaQuery.of(context).size;
     final screenHeight = screenSize.height;
@@ -302,7 +302,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                               delay: 0.6,
                                               child: _buildSignInButton(
                                                 primaryColor: primaryColor,
-                                                gradientEndColor: gradientEndColor,
+                                                gradientEndColor: AllyTheme.secondaryColor,
                                                 buttonText: "Sign In",
                                                 onPressed: _handleLrnPasswordSignIn,
                                               ),

@@ -1,0 +1,141 @@
+Date : 2025-10-17 20:55:39
+Directory : d:\ALLy\ally
+Total : 63 files,  3207 codes, 218 comments, 558 blanks, all 3983 lines
+
+Languages
++------------+------------+------------+------------+------------+------------+
+| language   | files      | code       | comment    | blank      | total      |
++------------+------------+------------+------------+------------+------------+
+| Dart       |         10 |        714 |          8 |         53 |        775 |
+| C++        |         16 |        582 |        131 |        189 |        902 |
+| Markdown   |          3 |        516 |          0 |        172 |        688 |
+| XML        |         10 |        488 |         56 |         12 |        556 |
+| CMake      |          8 |        474 |          0 |         92 |        566 |
+| JSON       |          5 |        277 |          0 |          4 |        281 |
+| Swift      |          6 |         81 |          7 |         21 |        109 |
+| YAML       |          2 |         48 |          1 |          8 |         57 |
+| HTML       |          1 |         19 |         15 |          5 |         39 |
+| Properties |          2 |          8 |          0 |          2 |         10 |
++------------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                       | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                          |         63 |      3,207 |        218 |        558 |      3,983 |
+| . (Files)                                                                  |          4 |        561 |          1 |        178 |        740 |
+| android                                                                    |         10 |        121 |         54 |         11 |        186 |
+| android (Files)                                                            |          1 |          3 |          0 |          1 |          4 |
+| android\app                                                                |          8 |        113 |         54 |          9 |        176 |
+| android\app (Files)                                                        |          1 |         29 |          0 |          0 |         29 |
+| android\app\src                                                            |          7 |         84 |         54 |          9 |        147 |
+| android\app\src\debug                                                      |          1 |          3 |          4 |          1 |          8 |
+| android\app\src\main                                                       |          5 |         78 |         46 |          7 |        131 |
+| android\app\src\main (Files)                                               |          1 |         52 |         14 |          1 |         67 |
+| android\app\src\main\res                                                   |          4 |         26 |         32 |          6 |         64 |
+| android\app\src\main\res\drawable                                          |          1 |          4 |          7 |          2 |         13 |
+| android\app\src\main\res\drawable-v21                                      |          1 |          4 |          7 |          2 |         13 |
+| android\app\src\main\res\values                                            |          1 |          9 |          9 |          1 |         19 |
+| android\app\src\main\res\values-night                                      |          1 |          9 |          9 |          1 |         19 |
+| android\app\src\profile                                                    |          1 |          3 |          4 |          1 |          8 |
+| android\gradle                                                             |          1 |          5 |          0 |          1 |          6 |
+| android\gradle\wrapper                                                     |          1 |          5 |          0 |          1 |          6 |
+| ios                                                                        |          8 |        229 |          4 |         13 |        246 |
+| ios\Runner                                                                 |          7 |        222 |          2 |          9 |        233 |
+| ios\Runner (Files)                                                         |          2 |         13 |          0 |          3 |         16 |
+| ios\RunnerTests                                                            |          1 |          7 |          2 |          4 |         13 |
+| ios\Runner\Assets.xcassets                                                 |          3 |        148 |          0 |          4 |        152 |
+| ios\Runner\Assets.xcassets\AppIcon.appiconset                              |          1 |        122 |          0 |          1 |        123 |
+| ios\Runner\Assets.xcassets\LaunchImage.imageset                            |          2 |         26 |          0 |          3 |         29 |
+| ios\Runner\Base.lproj                                                      |          2 |         61 |          2 |          2 |         65 |
+| lib                                                                        |         10 |        714 |          8 |         53 |        775 |
+| lib (Files)                                                                |          6 |        585 |         -6 |         42 |        621 |
+| lib\map_handlers                                                           |          4 |        129 |         14 |         11 |        154 |
+| linux                                                                      |          9 |        340 |         37 |         92 |        469 |
+| linux (Files)                                                              |          1 |        104 |          0 |         25 |        129 |
+| linux\flutter                                                              |          4 |        120 |          9 |         27 |        156 |
+| linux\runner                                                               |          4 |        116 |         28 |         40 |        184 |
+| macos                                                                      |          6 |        473 |          5 |         17 |        495 |
+| macos\Flutter                                                              |          1 |         32 |          3 |          4 |         39 |
+| macos\Runner                                                               |          4 |        434 |          0 |          9 |        443 |
+| macos\Runner (Files)                                                       |          2 |         23 |          0 |          7 |         30 |
+| macos\RunnerTests                                                          |          1 |          7 |          2 |          4 |         13 |
+| macos\Runner\Assets.xcassets                                               |          1 |         68 |          0 |          1 |         69 |
+| macos\Runner\Assets.xcassets\AppIcon.appiconset                            |          1 |         68 |          0 |          1 |         69 |
+| macos\Runner\Base.lproj                                                    |          1 |        343 |          0 |          1 |        344 |
+| web                                                                        |          2 |         54 |         15 |          6 |         75 |
+| windows                                                                    |         14 |        715 |         94 |        188 |        997 |
+| windows (Files)                                                            |          1 |         89 |          0 |         20 |        109 |
+| windows\flutter                                                            |          4 |        164 |          9 |         29 |        202 |
+| windows\runner                                                             |          9 |        462 |         85 |        139 |        686 |
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| filename                                                                   | language   | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| d:\ALLy\ally\README.md                                                     | Markdown   |        343 |          0 |        101 |        444 |
+| d:\ALLy\ally\RELEASES.md                                                   | Markdown   |        170 |          0 |         69 |        239 |
+| d:\ALLy\ally\analysis_options.yaml                                         | YAML       |          1 |          0 |          1 |          2 |
+| d:\ALLy\ally\android\app\google-services.json                              | JSON       |         29 |          0 |          0 |         29 |
+| d:\ALLy\ally\android\app\src\debug\AndroidManifest.xml                     | XML        |          3 |          4 |          1 |          8 |
+| d:\ALLy\ally\android\app\src\main\AndroidManifest.xml                      | XML        |         52 |         14 |          1 |         67 |
+| d:\ALLy\ally\android\app\src\main\res\drawable-v21\launch_background.xml   | XML        |          4 |          7 |          2 |         13 |
+| d:\ALLy\ally\android\app\src\main\res\drawable\launch_background.xml       | XML        |          4 |          7 |          2 |         13 |
+| d:\ALLy\ally\android\app\src\main\res\values-night\styles.xml              | XML        |          9 |          9 |          1 |         19 |
+| d:\ALLy\ally\android\app\src\main\res\values\styles.xml                    | XML        |          9 |          9 |          1 |         19 |
+| d:\ALLy\ally\android\app\src\profile\AndroidManifest.xml                   | XML        |          3 |          4 |          1 |          8 |
+| d:\ALLy\ally\android\gradle.properties                                     | Properties |          3 |          0 |          1 |          4 |
+| d:\ALLy\ally\android\gradle\wrapper\gradle-wrapper.properties              | Properties |          5 |          0 |          1 |          6 |
+| d:\ALLy\ally\ios\RunnerTests\RunnerTests.swift                             | Swift      |          7 |          2 |          4 |         13 |
+| d:\ALLy\ally\ios\Runner\AppDelegate.swift                                  | Swift      |         12 |          0 |          2 |         14 |
+| d:\ALLy\ally\ios\Runner\Assets.xcassets\AppIcon.appiconset\Contents.json   | JSON       |        122 |          0 |          1 |        123 |
+| d:\ALLy\ally\ios\Runner\Assets.xcassets\LaunchImage.imageset\Contents.json | JSON       |         23 |          0 |          1 |         24 |
+| d:\ALLy\ally\ios\Runner\Assets.xcassets\LaunchImage.imageset\README.md     | Markdown   |          3 |          0 |          2 |          5 |
+| d:\ALLy\ally\ios\Runner\Base.lproj\LaunchScreen.storyboard                 | XML        |         36 |          1 |          1 |         38 |
+| d:\ALLy\ally\ios\Runner\Base.lproj\Main.storyboard                         | XML        |         25 |          1 |          1 |         27 |
+| d:\ALLy\ally\ios\Runner\Runner-Bridging-Header.h                           | C++        |          1 |          0 |          1 |          2 |
+| d:\ALLy\ally\lib\background_location_service.dart                          | Dart       |        263 |         -7 |         41 |        297 |
+| d:\ALLy\ally\lib\history_screen.dart                                       | Dart       |        100 |          0 |          0 |        100 |
+| d:\ALLy\ally\lib\login_screen.dart                                         | Dart       |         40 |          0 |          0 |         40 |
+| d:\ALLy\ally\lib\main.dart                                                 | Dart       |         54 |          0 |          0 |         54 |
+| d:\ALLy\ally\lib\map_handlers\attendance_service.dart                      | Dart       |         38 |          1 |          4 |         43 |
+| d:\ALLy\ally\lib\map_handlers\map_service.dart                             | Dart       |          4 |          0 |          0 |          4 |
+| d:\ALLy\ally\lib\map_handlers\planned_absence_dialog.dart                  | Dart       |         55 |          2 |          1 |         58 |
+| d:\ALLy\ally\lib\map_handlers\presence_service.dart                        | Dart       |         32 |         11 |          6 |         49 |
+| d:\ALLy\ally\lib\map_screen.dart                                           | Dart       |         65 |          0 |          0 |         65 |
+| d:\ALLy\ally\lib\profile_page.dart                                         | Dart       |         63 |          1 |          1 |         65 |
+| d:\ALLy\ally\linux\CMakeLists.txt                                          | CMake      |        104 |          0 |         25 |        129 |
+| d:\ALLy\ally\linux\flutter\CMakeLists.txt                                  | CMake      |         79 |          0 |         10 |         89 |
+| d:\ALLy\ally\linux\flutter\generated_plugin_registrant.cc                  | C++        |         15 |          4 |          5 |         24 |
+| d:\ALLy\ally\linux\flutter\generated_plugin_registrant.h                   | C++        |          5 |          5 |          6 |         16 |
+| d:\ALLy\ally\linux\flutter\generated_plugins.cmake                         | CMake      |         21 |          0 |          6 |         27 |
+| d:\ALLy\ally\linux\runner\CMakeLists.txt                                   | CMake      |         21 |          0 |          6 |         27 |
+| d:\ALLy\ally\linux\runner\main.cc                                          | C++        |          5 |          0 |          2 |          7 |
+| d:\ALLy\ally\linux\runner\my_application.cc                                | C++        |         83 |         21 |         27 |        131 |
+| d:\ALLy\ally\linux\runner\my_application.h                                 | C++        |          7 |          7 |          5 |         19 |
+| d:\ALLy\ally\macos\Flutter\GeneratedPluginRegistrant.swift                 | Swift      |         32 |          3 |          4 |         39 |
+| d:\ALLy\ally\macos\RunnerTests\RunnerTests.swift                           | Swift      |          7 |          2 |          4 |         13 |
+| d:\ALLy\ally\macos\Runner\AppDelegate.swift                                | Swift      |         11 |          0 |          3 |         14 |
+| d:\ALLy\ally\macos\Runner\Assets.xcassets\AppIcon.appiconset\Contents.json | JSON       |         68 |          0 |          1 |         69 |
+| d:\ALLy\ally\macos\Runner\Base.lproj\MainMenu.xib                          | XML        |        343 |          0 |          1 |        344 |
+| d:\ALLy\ally\macos\Runner\MainFlutterWindow.swift                          | Swift      |         12 |          0 |          4 |         16 |
+| d:\ALLy\ally\pubspec.yaml                                                  | YAML       |         47 |          1 |          7 |         55 |
+| d:\ALLy\ally\web\index.html                                                | HTML       |         19 |         15 |          5 |         39 |
+| d:\ALLy\ally\web\manifest.json                                             | JSON       |         35 |          0 |          1 |         36 |
+| d:\ALLy\ally\windows\CMakeLists.txt                                        | CMake      |         89 |          0 |         20 |        109 |
+| d:\ALLy\ally\windows\flutter\CMakeLists.txt                                | CMake      |         98 |          0 |         12 |        110 |
+| d:\ALLy\ally\windows\flutter\generated_plugin_registrant.cc                | C++        |         33 |          4 |          5 |         42 |
+| d:\ALLy\ally\windows\flutter\generated_plugin_registrant.h                 | C++        |          5 |          5 |          6 |         16 |
+| d:\ALLy\ally\windows\flutter\generated_plugins.cmake                       | CMake      |         28 |          0 |          6 |         34 |
+| d:\ALLy\ally\windows\runner\CMakeLists.txt                                 | CMake      |         34 |          0 |          7 |         41 |
+| d:\ALLy\ally\windows\runner\flutter_window.cpp                             | C++        |         49 |          7 |         16 |         72 |
+| d:\ALLy\ally\windows\runner\flutter_window.h                               | C++        |         20 |          5 |          9 |         34 |
+| d:\ALLy\ally\windows\runner\main.cpp                                       | C++        |         30 |          4 |         10 |         44 |
+| d:\ALLy\ally\windows\runner\resource.h                                     | C++        |          9 |          6 |          2 |         17 |
+| d:\ALLy\ally\windows\runner\utils.cpp                                      | C++        |         54 |          2 |         10 |         66 |
+| d:\ALLy\ally\windows\runner\utils.h                                        | C++        |          8 |          6 |          6 |         20 |
+| d:\ALLy\ally\windows\runner\win32_window.cpp                               | C++        |        210 |         24 |         55 |        289 |
+| d:\ALLy\ally\windows\runner\win32_window.h                                 | C++        |         48 |         31 |         24 |        103 |
+| Total                                                                      |            |      3,207 |        218 |        558 |      3,983 |
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+

@@ -10,6 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'notification_service.dart';
 import 'login_screen.dart';
 import 'background_location_service.dart';
+import 'ui_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,59 +76,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'ALLY Tracking',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6366F1),
-          primary: const Color(0xFF6366F1),
-          secondary: const Color(0xFF8B5CF6),
-          surface: const Color(0xFFF8FAFC),
-          error: const Color(0xFFEF4444),
-        ),
-        fontFamily: 'Inter',
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w800, letterSpacing: -1.5),
-          displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w700, letterSpacing: -0.5),
-          displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.w600),
-          headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w600),
-          headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
-          headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
-          titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
-          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
-          bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
-          bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          shadowColor: Colors.black.withOpacity(0.1),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF6366F1), width: 2),
-          ),
-        ),
-      ),
+      theme: AllyTheme.getTheme(),
       home: const LoginScreen(),
     );
   }
