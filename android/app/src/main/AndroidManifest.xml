@@ -13,9 +13,9 @@
     <!-- Android 13+ (API 33) runtime notifications permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="ally"
+        android:label="Ally Tracking App"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/launcher_icon"
         android:enableOnBackInvokedCallback="true">
         <!-- Background tracking foreground service (location) -->
         <service

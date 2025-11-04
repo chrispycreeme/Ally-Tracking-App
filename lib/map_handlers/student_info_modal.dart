@@ -227,7 +227,6 @@ class StudentInfoModal extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(
-            fontFamily: 'Inter',
             fontWeight: FontWeight.bold,
             fontSize: 18,
             color: _darkTextColor,
@@ -637,3 +636,4 @@ class StudentInfoModal extends StatelessWidget {
     );
   }
 }
+

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 /// Centralized theme configuration for consistent UI across the app
 class AllyTheme {
+  static const String fontFamilyPrimary = 'ProductSans';
+  static const List<String> fontFamilyFallback = ['Inter', 'sans-serif'];
+
   // Color palette
   static const Color primaryColor = Color(0xFF6366F1);
   static const Color secondaryColor = Color(0xFF8B5CF6);
@@ -89,49 +92,56 @@ class AllyTheme {
 
   // Text styles
   static const TextStyle headingXL = TextStyle(
-    fontFamily: 'Inter',
+    fontFamily: fontFamilyPrimary,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 28,
     fontWeight: FontWeight.w700,
     color: darkTextColor,
   );
 
   static const TextStyle headingLG = TextStyle(
-    fontFamily: 'Inter',
+    fontFamily: fontFamilyPrimary,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 24,
     fontWeight: FontWeight.w700,
     color: darkTextColor,
   );
 
   static const TextStyle headingMD = TextStyle(
-    fontFamily: 'Inter',
+    fontFamily: fontFamilyPrimary,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 20,
     fontWeight: FontWeight.w600,
     color: darkTextColor,
   );
 
   static const TextStyle bodyLG = TextStyle(
-    fontFamily: 'Inter',
+    fontFamily: fontFamilyPrimary,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 16,
     fontWeight: FontWeight.w500,
     color: darkTextColor,
   );
 
   static const TextStyle bodyMD = TextStyle(
-    fontFamily: 'Inter',
+    fontFamily: fontFamilyPrimary,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 14,
     fontWeight: FontWeight.w500,
     color: darkTextColor,
   );
 
   static const TextStyle bodySM = TextStyle(
-    fontFamily: 'Inter',
+    fontFamily: fontFamilyPrimary,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 12,
     fontWeight: FontWeight.w400,
     color: lightTextColor,
   );
 
   static const TextStyle captionSM = TextStyle(
-    fontFamily: 'Inter',
+    fontFamily: fontFamilyPrimary,
+    fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w500,
     color: lightTextColor,
@@ -139,13 +149,17 @@ class AllyTheme {
 
   // Get ThemeData for MaterialApp
   static ThemeData getTheme({bool isDark = false}) {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: primaryColor,
+      brightness: isDark ? Brightness.dark : Brightness.light,
+    );
+
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryColor,
-        brightness: isDark ? Brightness.dark : Brightness.light,
-      ),
-      fontFamily: 'Inter',
+      colorScheme: colorScheme,
+      fontFamily: fontFamilyPrimary,
+      fontFamilyFallback: fontFamilyFallback,
+      textTheme: _buildTextTheme(colorScheme, isDark),
       scaffoldBackgroundColor: isDark ? const Color(0xFF0F172A) : surfaceColor,
       appBarTheme: AppBarTheme(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -202,6 +216,36 @@ class AllyTheme {
           color: isDark ? const Color(0xFF94A3B8) : lightTextColor,
         ),
       ),
+    );
+  }
+
+  static TextTheme _buildTextTheme(ColorScheme colorScheme, bool isDark) {
+    final base = isDark
+        ? Typography.material2021().white
+        : Typography.material2021().black;
+
+    final displayColor = isDark ? Colors.white : darkTextColor;
+    final bodyColor = isDark ? Colors.white70 : const Color(0xFF1E293B);
+
+    return base.apply(
+      fontFamily: fontFamilyPrimary,
+      bodyColor: bodyColor,
+      displayColor: displayColor,
+    ).copyWith(
+      displayLarge: base.displayLarge?.copyWith(fontWeight: FontWeight.w700),
+      displayMedium: base.displayMedium?.copyWith(fontWeight: FontWeight.w700),
+      headlineLarge: base.headlineLarge?.copyWith(fontWeight: FontWeight.w700),
+      headlineMedium: base.headlineMedium?.copyWith(fontWeight: FontWeight.w600),
+      headlineSmall: base.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+      titleLarge: base.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+      titleMedium: base.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+      titleSmall: base.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      labelLarge: base.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+      labelMedium: base.labelMedium?.copyWith(fontWeight: FontWeight.w500),
+      labelSmall: base.labelSmall?.copyWith(fontWeight: FontWeight.w500),
+      bodyLarge: base.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+      bodyMedium: base.bodyMedium?.copyWith(fontWeight: FontWeight.w400),
+      bodySmall: base.bodySmall?.copyWith(fontWeight: FontWeight.w400),
     );
   }
 }

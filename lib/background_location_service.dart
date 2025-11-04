@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'map_handlers/presence_service.dart';
+import 'notification_service.dart';
 
 const _kNotificationChannelId = 'ally_background_tracking';
 const _kNotificationId = 9971;
@@ -58,6 +59,9 @@ Future<void> backgroundServiceEntry(ServiceInstance service) async {
     service.setAsForegroundService();
   }
 
+  // Initialize notification service for persistent notifications
+  await NotificationService().init();
+
   final firestore = FirebaseFirestore.instance;
   final prefs = await SharedPreferences.getInstance();
   final presenceService = PresenceService(firestore: firestore);
@@ -78,6 +82,14 @@ Future<void> backgroundServiceEntry(ServiceInstance service) async {
     notificationContent = content;
     if (service is AndroidServiceInstance) {
       service.setForegroundNotificationInfo(title: title, content: content);
+    }
+    // Also show as a persistent notification so it cannot be swiped away (only when logged in)
+    if (NotificationService().isLoggedIn) {
+      NotificationService().showPersistentNotification(
+        title: title,
+        content: content,
+        notificationId: _kNotificationId,
+      );
     }
   }
 

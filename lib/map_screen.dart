@@ -1224,7 +1224,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                   Text(
                     studentToShow.name,
                     style: const TextStyle(
-                      fontFamily: 'Inter',
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -1699,7 +1698,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                   style: TextStyle(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
-                                    fontFamily: 'Inter',
                                     color: _darkTextColor,
                                   ),
                                 ),
@@ -1708,7 +1706,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: _lightTextColor,
-                                    fontFamily: 'Inter',
                                   ),
                                 ),
                               ],
@@ -1738,7 +1735,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: _successColor,
-                                    fontFamily: 'Inter',
                                   ),
                                 ),
                               ],
@@ -1768,7 +1764,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                             hintText: 'Search by LRN or name...',
                             hintStyle: TextStyle(
                               color: _lightTextColor,
-                              fontFamily: 'Inter',
                             ),
                             suffixIcon: _lrnFilterQuery.isNotEmpty
                                 ? IconButton(
@@ -1817,7 +1812,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                   hintText: 'Add student by LRN',
                                   hintStyle: TextStyle(
                                     color: _lightTextColor,
-                                    fontFamily: 'Inter',
                                   ),
                                   prefixIcon: Icon(Icons.person_add_alt, color: _accentColor),
                                   filled: true,
@@ -1897,7 +1891,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                         color: _lightTextColor,
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
-                                        fontFamily: 'Inter',
                                       ),
                                     ),
                                     if (_lrnFilterQuery.isEmpty) ...[
@@ -1907,7 +1900,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                         style: TextStyle(
                                           color: _lightTextColor,
                                           fontSize: 14,
-                                          fontFamily: 'Inter',
                                         ),
                                       ),
                                     ],
@@ -1987,7 +1979,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                               style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
-                                                fontFamily: 'Inter',
                                               ),
                                             ),
                                           ),
@@ -2003,7 +1994,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w600,
                                                 color: _primaryColor,
-                                                fontFamily: 'Inter',
                                               ),
                                             ),
                                           ),
@@ -2041,7 +2031,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                                         fontSize: 11,
                                                         fontWeight: FontWeight.w600,
                                                         color: s.isOnline ? _successColor : _warningColor,
-                                                        fontFamily: 'Inter',
                                                       ),
                                                     ),
                                                   ],
@@ -2053,7 +2042,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: _lightTextColor,
-                                                  fontFamily: 'Inter',
                                                 ),
                                               ),
                                             ],
@@ -2072,7 +2060,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: _lightTextColor,
-                                                  fontFamily: 'Inter',
                                                 ),
                                               ),
                                               const SizedBox(width: 12),
@@ -2094,7 +2081,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                                       ? _successColor
                                                       : _errorColor,
                                                   fontWeight: FontWeight.w500,
-                                                  fontFamily: 'Inter',
                                                 ),
                                               ),
                                               if (s.currentBuilding != null) ...[
@@ -2110,7 +2096,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     color: _lightTextColor,
-                                                    fontFamily: 'Inter',
                                                   ),
                                                 ),
                                               ],
@@ -2143,7 +2128,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                                         fontSize: 12,
                                                         color: _warningColor,
                                                         fontWeight: FontWeight.w500,
-                                                        fontFamily: 'Inter',
                                                       ),
                                                       maxLines: 2,
                                                       overflow: TextOverflow.ellipsis,
@@ -2161,7 +2145,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
                                                         fontSize: 9,
                                                         fontWeight: FontWeight.bold,
                                                         color: _warningColor,
-                                                        fontFamily: 'Inter',
                                                       ),
                                                     ),
                                                   ),
@@ -2248,7 +2231,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
               'Remove Student',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontFamily: 'Inter',
               ),
             ),
           ],
@@ -2258,7 +2240,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
             style: TextStyle(
               color: _darkTextColor,
               fontSize: 14,
-              fontFamily: 'Inter',
             ),
             children: [
               const TextSpan(text: 'Remove '),
@@ -2285,7 +2266,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
               'Cancel',
               style: TextStyle(
                 color: _lightTextColor,
-                fontFamily: 'Inter',
               ),
             ),
           ),
@@ -2302,7 +2282,6 @@ class _FixedMapScreenState extends State<FixedMapScreen>
               'Remove',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                fontFamily: 'Inter',
               ),
             ),
           ),

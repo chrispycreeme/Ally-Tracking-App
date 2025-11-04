@@ -12,6 +12,7 @@ import 'map_handlers/attendance_service.dart';
 // Ensure the AbsenceReasonDialog class is defined in the imported file or define it below if missing.
 import 'login_service.dart';
 import 'background_location_service.dart';
+import 'notification_service.dart';
 import 'ui_theme.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -93,6 +94,10 @@ class _ProfilePageState extends State<ProfilePage> {
       
       // Add a small delay to ensure cleanup completes
       await Future.delayed(const Duration(milliseconds: 100));
+
+      // Clear the persistent notification and mark as logged out
+      await NotificationService().clearPersistentNotification();
+      NotificationService().setLoggedIn(false);
       
       // Sign out from Firebase
       await _loginService.signOut();
@@ -124,7 +129,6 @@ class _ProfilePageState extends State<ProfilePage> {
           content: Text(
             message,
             style: const TextStyle(
-              fontFamily: 'Inter',
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -192,7 +196,6 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Text(
           'Profile',
           style: TextStyle(
-            fontFamily: 'Inter',
             fontWeight: FontWeight.bold,
             color: _primaryColor,
             fontSize: 18,
@@ -816,7 +819,6 @@ class _ProfilePageState extends State<ProfilePage> {
               fontSize: isSmallScreen ? 22 : 26,
               fontWeight: FontWeight.w800,
               color: _darkTextColor,
-              fontFamily: 'Inter',
               letterSpacing: 0.3,
             ),
           ),
@@ -858,7 +860,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: _primaryColor,
-                    fontFamily: 'Inter',
                     letterSpacing: 0.3,
                   ),
                 ),
@@ -872,7 +873,6 @@ class _ProfilePageState extends State<ProfilePage> {
             style: TextStyle(
               color: _lightTextColor,
               fontSize: 12,
-              fontFamily: 'Inter',
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -946,7 +946,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   fontSize: isSmallScreen ? 16 : 20,
                   fontWeight: FontWeight.bold,
                   color: _darkTextColor,
-                  fontFamily: 'Inter',
                 ),
               ),
             ],
@@ -1010,7 +1009,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       fontSize: isSmallScreen ? 11 : 12,
                       fontWeight: FontWeight.w500,
                       color: _lightTextColor,
-                      fontFamily: 'Inter',
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -1021,7 +1019,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       fontSize: isSmallScreen ? 14 : 16,
                       fontWeight: FontWeight.w700,
                       color: _darkTextColor,
-                      fontFamily: 'Inter',
                     ),
                   ),
                 ],
@@ -1105,7 +1102,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         fontSize: isSmallScreen ? 16 : 20,
                         fontWeight: FontWeight.bold,
                         color: _warningColor,
-                        fontFamily: 'Inter',
                       ),
                     ),
                     SizedBox(height: isSmallScreen ? 2 : 4),
@@ -1114,7 +1110,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       style: TextStyle(
                         fontSize: isSmallScreen ? 12 : 14,
                         color: _lightTextColor,
-                        fontFamily: 'Inter',
                       ),
                     ),
                   ],
@@ -1132,7 +1127,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     fontSize: isSmallScreen ? 10 : 12,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    fontFamily: 'Inter',
                   ),
                 ),
               ),
@@ -1163,7 +1157,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       fontSize: isSmallScreen ? 11 : 12,
                       fontWeight: FontWeight.w600,
                       color: _warningColor,
-                      fontFamily: 'Inter',
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -1174,7 +1167,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       fontSize: isSmallScreen ? 14 : 16,
                       fontWeight: FontWeight.w600,
                       color: _darkTextColor,
-                      fontFamily: 'Inter',
                     ),
                   ),
                   SizedBox(height: isSmallScreen ? 6 : 8),
@@ -1183,7 +1175,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: TextStyle(
                       fontSize: isSmallScreen ? 11 : 12,
                       color: _lightTextColor,
-                      fontFamily: 'Inter',
                       fontStyle: FontStyle.italic,
                     ),
                   ),
@@ -1210,7 +1201,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: TextStyle(
                     color: _warningColor,
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'Inter',
                     fontSize: isSmallScreen ? 14 : 16,
                   ),
                 ),
@@ -1234,7 +1224,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 style: TextStyle(
                   fontSize: 14,
                   color: _darkTextColor,
-                  fontFamily: 'Inter',
                   height: 1.4,
                 ),
               ),
@@ -1260,7 +1249,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   'Provide Absence Reason',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'Inter',
                   ),
                 ),
               ),
@@ -1436,7 +1424,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   fontSize: isSmallScreen ? 16 : 20,
                   fontWeight: FontWeight.bold,
                   color: _darkTextColor,
-                  fontFamily: 'Inter',
                 ),
               ),
             ],
@@ -1498,7 +1485,6 @@ class _ProfilePageState extends State<ProfilePage> {
               fontSize: isSmallScreen ? 11 : 12,
               fontWeight: FontWeight.w500,
               color: _lightTextColor,
-              fontFamily: 'Inter',
             ),
           ),
           SizedBox(height: isSmallScreen ? 3 : 4),
@@ -1508,7 +1494,6 @@ class _ProfilePageState extends State<ProfilePage> {
               fontSize: isSmallScreen ? 12 : 14,
               fontWeight: FontWeight.bold,
               color: color,
-              fontFamily: 'Inter',
             ),
           ),
         ],
@@ -1585,7 +1570,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         style: TextStyle(
                           fontSize: isSmallScreen ? 14 : 16,
                           fontWeight: FontWeight.bold,
-                          fontFamily: 'Inter',
                         ),
                       ),
                     ],
@@ -1620,7 +1604,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   fontSize: isSmallScreen ? 11 : 12,
                   fontWeight: FontWeight.w500,
                   color: _primaryColor,
-                  fontFamily: 'Inter',
                 ),
               ),
             ],
